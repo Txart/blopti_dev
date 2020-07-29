@@ -22,11 +22,12 @@ from multiprocessing import Pool
 from multiprocessing import cpu_count
 import emcee
 
+#%%
 """
 Definitions
 """
 
-def fabricate_data(nx, dt, s0, s1, t0, t1, t2, HINI, NDAYS, SENSOR_LOCATIONS, MAX_HEAD_BOUNDARIES=5., MAX_SOURCE=3., filename="fabricated_data.txt"):
+def fabricate_data(nx, dt, params, HINI, NDAYS, SENSOR_LOCATIONS, MAX_HEAD_BOUNDARIES=5., MAX_SOURCE=3., filename="fabricated_data.txt"):
 
     """
 
@@ -62,66 +63,43 @@ def fabricate_data(nx, dt, s0, s1, t0, t1, t2, HINI, NDAYS, SENSOR_LOCATIONS, MA
 
     """
     dx = 1
-    mesh = fp.Grid1D(nx=nx, dx=dx)
     
-    h = fp.CellVariable(name="head", mesh=mesh, value=HINI, hasOld=True)
-
-    theta = fp.CellVariable(name="theta", mesh=mesh, value=numerix.exp(s0_true + s1_true*h.value), hasOld=True)
+    s0 = params[0]; s1 = params[1] 
+    t0 = params[2]; t1 = params[3]; t2 = params[4]
     
-    D = t0_true/s1_true * numerix.exp(t1_true* ((numerix.log(theta) -s0_true)/s1_true)**t2_true)/ theta
+    theta_ini = np.exp(s0 + s1*HINI) 
     
     # BC, source/sink
     boundary_sensors = np.random.rand(NDAYS, 2) * MAX_HEAD_BOUNDARIES
     PRECIPITATION = np.random.rand(NDAYS) * MAX_SOURCE
     EVAPOTRANSPIRATION = np.random.rand(NDAYS) * MAX_SOURCE
-    P = PRECIPITATION[0]; ET = EVAPOTRANSPIRATION[0]
     
-    # Boussinesq eq. in theta
-    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=D) + P - ET
-    
-    MAX_SWEEPS = 100
+    wtd = hydro_1d(nx, dx, dt, params, theta_ini, NDAYS, SENSOR_LOCATIONS, boundary_sensors, PRECIPITATION, EVAPOTRANSPIRATION)
 
-    
     with open(filename, 'w') as out:
-        out.write('sensor0   sensor1   sensor2   sensor3   day   P   ET\n')
-    
-    for day in range(NDAYS):
-        
-        theta.updateOld()
-        
-        # BC and Source/sink update
-        theta_left = numerix.exp(s0_true + s1_true*boundary_sensors[day,0])
-        theta_right = numerix.exp(s0_true + s1_true*boundary_sensors[day,1])
-        theta.constrain(theta_left, where=mesh.facesLeft); theta.constrain(theta_right, where=mesh.facesRight)
-        P = PRECIPITATION[day]; ET = EVAPOTRANSPIRATION[day]
-        
-        
-        res = 0.0
-        for r in range(MAX_SWEEPS):
-            resOld=res
-            res = eq.sweep(var=theta, dt=dt)
-
-            if abs(res - resOld) < 1e-7: break # it has reached the solution of the linear system
-      
-        with open(filename, 'a') as out:
-            h_from_theta = (numerix.log(theta) -s0)/s1
-            sensor_values = [h_from_theta.value[loc] for loc in SENSOR_LOCATIONS]
-            line = "   ".join([str(s_v) for s_v in sensor_values])
-            line = line + f"   {day}   {P}   {ET}"
+        out.write('bcleft   sensor0   sensor1   sensor2   sensor3   bcright   day   P   ET\n')
+        for day, l in enumerate(wtd):
+            line = "   ".join([str(s_v) for s_v in l])
+            line = f"{boundary_sensors[day,0]}   " + line + f"   {boundary_sensors[day,1]}   {day}   {PRECIPITATION[day]}   {EVAPOTRANSPIRATION[day]}"
             out.write( line + '\n')
+    
+    return 0
+
 
 def read_sensors(filename):
     with open(filename, 'r') as f:
         df_sensors = pd.read_csv(filename, engine='python', sep='   ')
     
+    bcleft = df_sensors['bcleft'].to_numpy()
+    bcright = df_sensors['bcright'].to_numpy()
     sensor_measurements = df_sensors.loc[:,'sensor0':'sensor3'].to_numpy()
     day = df_sensors['day'].to_numpy()
     P = df_sensors['P'].to_numpy()
     ET = df_sensors['ET'].to_numpy()
     
-    return sensor_measurements, day, P, ET
+    return bcleft, bcright, sensor_measurements, day, P, ET
 
-def hydro_1d(nx, dx, dt, params, theta_ini, ndays, sensor_loc):
+def hydro_1d(nx, dx, dt, params, theta_ini, ndays, sensor_loc, boundary, precip, evapotra):
     mesh = fp.Grid1D(nx=nx, dx=dx)
     
     s0 = params[0]; s1 = params[1] 
@@ -152,7 +130,7 @@ def hydro_1d(nx, dx, dt, params, theta_ini, ndays, sensor_loc):
         theta.updateOld()
         
         # BC and Source/sink update
-        boundary_sensors = [measurements[day,0], measurements[day, -1]]
+        boundary_sensors = boundary[day]
         theta_left = numerix.exp(s0 + s1*boundary_sensors[0])
         theta_right = numerix.exp(s0 + s1*boundary_sensors[1])
         theta.constrain(theta_left, where=mesh.facesLeft); theta.constrain(theta_right, where=mesh.facesRight)
@@ -199,14 +177,13 @@ true_params = [s0_true, s1_true, t0_true, t1_true, t2_true]
 
 HINI = 8.
 
-SENSOR_LOCATIONS = [0, 12, 67, 94]
+SENSOR_LOCATIONS = [0, 12, 67, 99]
 NDAYS = 5
 nx_fabricate=100; dt=1.
 
 
-PLOT_SETUP = False
+PLOT_SETUP = True
 if PLOT_SETUP:
-    plt.figure()
     fig, axes = plt.subplots(2)
     axS, axT = axes
     
@@ -218,7 +195,7 @@ if PLOT_SETUP:
 
 
 # Uncomment this to fabricate and rewrite some data
-# fabricate_data(nx_fabricate, dt, s0_true, s1_true, t0_true, t1_true, t2_true, HINI, NDAYS, SENSOR_LOCATIONS)
+# fabricate_data(nx_fabricate, dt, true_params, HINI, NDAYS, SENSOR_LOCATIONS)
 
 
 #%%
@@ -227,7 +204,8 @@ Get sensor data
 TODO: rewrite for sensors of the same time! MCMC takes care of parallelization
 """
 filename = 'fabricated_data.txt'
-measurements, days, precip, evapotra = read_sensors(filename)
+bcleft, bcright, measurements, days, precip, evapotra = read_sensors(filename)
+boundary = np.array(list(zip(bcleft, bcright)))
 
 if PLOT_SETUP:
     plt.figure()
@@ -239,30 +217,32 @@ if PLOT_SETUP:
 """
 MCMC parameter estimation
 """ 
-nx = 10
+nx = 100
 dx = 1.
 dt = 1.
 
+# IC, interpolated from initial sensor values
+# hini_interp = interpolate.interp1d(SENSOR_LOCATIONS, measurements[0])
+# hini = hini_interp(np.arange(0, nx, dx))
+hini = HINI
 
-NDAYS = 5 # TODO: Get this from data?
+ndays = len(measurements) 
 
 SENSOR_MEASUREMENT_ERR = 0.05 # metres. Theoretically, 1mm
 
 # Correct sensor positions to accommodate new nx
 sensor_locations = np.array(SENSOR_LOCATIONS) * nx / nx_fabricate
 sensor_locations = np.rint(sensor_locations).astype(int)
+ 
 
 def log_likelihood(params):
     s0 = params[0]; s1 = params[1] 
     t0 = params[2]; t1 = params[3]; t2 = params[4];
     
-    # IC, interpolated from initial sensor values
-    hini_interp = interpolate.interp1d(SENSOR_LOCATIONS, measurements[0])
-    hini = hini_interp(np.arange(0, nx, dx))
     theta_ini = np.exp(s0 + s1*hini) 
-    
+
     try:
-        simulated_wtd = hydro_1d(nx, dx, dt, params, theta_ini, NDAYS, sensor_locations)
+        simulated_wtd = hydro_1d(nx, dx, dt, params, theta_ini, ndays, sensor_locations, boundary, precip, evapotra)
     # TODO: this error handling might be the reason of the thing not working. Check!!
     except: # if error in hydro computation
         print("###### SOME ERROR IN HYDRO #######")
