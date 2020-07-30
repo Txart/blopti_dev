@@ -182,7 +182,7 @@ NDAYS = 5
 nx_fabricate=100; dt=1.
 
 
-PLOT_SETUP = True
+PLOT_SETUP = False
 if PLOT_SETUP:
     fig, axes = plt.subplots(2)
     axS, axT = axes
