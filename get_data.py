@@ -124,11 +124,11 @@ wt_df['date']=new[0]
 wt_df['time']=time
 wt_df.drop(columns=['created'], inplace=True)
 #%%
-a = wt_df[wt_df['sensor-label']=='P012X']
+a = wt_df[wt_df['sensor-label']=='DAYUN 03']
 
 
 import matplotlib.pyplot as plt
 
-plt.plot(a.created, a.convertedValue ,'o')
+plt.plot(a.convertedValue, 'o')
 
 
