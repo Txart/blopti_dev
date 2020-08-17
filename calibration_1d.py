@@ -149,8 +149,8 @@ def hydro_1d(nx, dx, dt, params, theta_ini, ndays, sensor_loc, boundary, precip,
     
     return np.array(h_from_theta_sol)
 
+#%%
 if __name__ == '__main__':
-    #%%
     """
     Parse command-line arguments
     """
@@ -158,7 +158,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--ncpu', default=1, help='(int) Number of processors', type=int)
     parser.add_argument('-cl','--chainlength', default=100, help='(int) Length of MCMC chain', type=int)
-    parser.add_argument('-w','--nwalkers', default=10, help='(int) Number of walkers in parameter space', type=int)
+    parser.add_argument('-w','--nwalkers', default=14, help='(int) Number of walkers in parameter space', type=int)
     args = parser.parse_args()
     
     N_CPU = args.ncpu
@@ -234,19 +234,15 @@ if __name__ == '__main__':
     # Correct sensor positions to accommodate new nx
     sensor_locations = np.array(SENSOR_LOCATIONS) * nx / nx_fabricate
     sensor_locations = np.rint(sensor_locations).astype(int)
-    
-    hydro_infinity_counter = 0
-     
+
     
     def log_likelihood(params):
-        s0 = params[0]; s1 = params[1] 
-        t0 = params[2]; t1 = params[3]; t2 = params[4];
+        s0 = params[0]; s1 = params[1]
         
         theta_ini = np.exp(s0 + s1*hini) 
     
         try:
             simulated_wtd = hydro_1d(nx, dx, dt, params, theta_ini, ndays, sensor_locations, boundary, precip, evapotra)
-        # TODO: this error handling is fishy. Check!!
         except: # if error in hydro computation
             print("###### SOME ERROR IN HYDRO #######")
             return -np.inf
@@ -272,27 +268,25 @@ if __name__ == '__main__':
     def log_prior(params):
         s0 = params[0]; s1 = params[1] 
         t0 = params[2]; t1 = params[3]; t2 = params[4];
-        # uniform priors everywhere.
-        if -0.1<t0<1000 and -0.1<t1<10 and -0.1<t2<10  and -0.1<s0<100 and -0.1<s1<100: 
-            return 0.0
         
-        return -np.inf
+        # uniform priors everywhere.
+        if not -0.1<t0<1000 and -0.1<t1<10 and -0.1<t2<10  and -0.1<s0<100 and -0.1<s1<100: 
+            return -np.inf
+        
+        return 0        
     
     def log_probability(params):
-    
         lp = log_prior(params)
         if not np.isfinite(lp):
             return -np.inf
         ll = log_likelihood(params)
         if not np.isfinite(ll).any(): # if Error in hydro computation
-            global hydro_infinity_counter
-            hydro_infinity_counter += 1
             return -np.inf
         return lp + ll
     
     def gen_positions_for_walkers(n_walkers, n_params):
         # Generate based on true values + noise. TODO: change in the future!
-        true_values = np.array([[s0_true,s1_true,t0_true,t1_true,t2_true],]*n_walkers)
+        true_values = np.array([true_params,]*n_walkers)
         noise = (np.random.rand(n_walkers, n_params) -0.5)*0.2 # random numbers in (-0.1, +0.1)
         return true_values + noise
     
