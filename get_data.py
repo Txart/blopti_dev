@@ -6,6 +6,7 @@ if sys.version_info[0] < 3:  # Fork for python2 and python3 compatibility
     from StringIO import StringIO
 else:
     from io import StringIO
+import datetime
 
 from estimate_daily_et import compute_ET
 
@@ -60,7 +61,7 @@ def compute_ET_dataframe(row):
                       row['T_min'], row['rel_hum'], row['windspeed'], row['air_pressure'])
     return ET
 
-import datetime
+
 def string_to_datetime(date_string):
     # formats string dates as datetime objects
     # date_string should be inputed as:
@@ -95,23 +96,6 @@ def datetime_to_julian(date_string):
         
     return int(dt.strftime('%j')) + 365*add_year
 
-    
-#%%
-"""
- Get data
-"""
-# WTD
-wt_df = get_wt_data() 
-
-# Weather
-fn_weather_data = Path('data/weather_station_historic_data.xlsx')
-fn_weather_data = str(fn_weather_data.absolute())
-weather_df = read_historic_weather_data(fn_weather_data)
-
-#%%
-"""
- Clean data
-"""
 def clean_WTD_data(df):
     df = df.loc[:,'convertedValue': 'sensor-label'] # slice relevant info
     new = df['created'].str.split('T', n=1, expand=True)
@@ -133,13 +117,6 @@ def clean_weather_data(df):
     
     return df
 
-wt_df = clean_WTD_data(wt_df)
-weather_df = clean_weather_data(weather_df)
-
-# %%
-"""
- Convert data to daily
-"""
 def aggregate_wtd_to_daily(wt_df):
     #   - First, separate by sensor
     #   - Then, aggregate daily
@@ -177,14 +154,6 @@ def aggregate_weather_to_daily(weather_df):
     daily_weather_df.index = daily_weather_df['julian_day']
     return daily_weather_df
 
-daily_wtd_df = aggregate_wtd_to_daily(wt_df)
-daily_weather_df = aggregate_weather_to_daily(weather_df)
-
-#%%
-"""
- Organize sensor data into dictionary
-"""
-# Dictionary of dataframes, keys are sensor names
 def wtd_dictionary_of_dataframes(wtd_df):
     wtd_df.index = wtd_df['julian_day']
     
@@ -218,22 +187,16 @@ def wtd_dictionary_of_dataframes(wtd_df):
         else:
             modified_sname = sname # no changes in other sensor names
             
-        df_sen = wtd_df[daily_wtd_df['sensor_label'] == sname]
+        df_sen = wtd_df[wtd_df['sensor_label'] == sname]
 
         dfs_by_sensor_label[modified_sname] = df_sen
         
     return dfs_by_sensor_label
 
-dfs_by_sensor_label = wtd_dictionary_of_dataframes(daily_wtd_df)
-
-#%%
-"""
- Put transects together and append weather data
-"""
 def strings_containing_substring(string_list, substring):
     return [name for name in string_list if substring in name]
 
-def transects_and_weather_together(dfs_by_sensor_label):
+def transects_and_weather_together(dfs_by_sensor_label, daily_weather_df):
     sensor_names = list(dfs_by_sensor_label.keys())
     sensor_identifiers = ['P', 'DAYUN', 'DOSAN']
     dfs_by_transects = {}
@@ -288,69 +251,91 @@ def transects_and_weather_together(dfs_by_sensor_label):
                 dfs_by_transects[si + sensor_number] = df
     
     return dfs_by_transects
-            
-dfs_by_transects = transects_and_weather_together(dfs_by_sensor_label)           
-            
-            
+   
 #%%
-"""
- Choose relevant transects.
- Slice by date
-""" 
-# Choose transects
-relevant_transects = ['P002', 'P003', 'P006', 'P009', 'P012', 'P015', 'P016', 'P018', 'P021']
-dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
+    
+def main(fn_weather_data):
+    """
+     Get data
+    """
+    # WTD
+    wt_df = get_wt_data() 
+    
+    # Weather
+    fn_weather_data = str(fn_weather_data.absolute())
+    weather_df = read_historic_weather_data(fn_weather_data)
+    
+    """
+     Clean data
+    """
+    wt_df = clean_WTD_data(wt_df)
+    weather_df = clean_weather_data(weather_df)
+    
+    """
+     Compute ET.
+     Convert data to daily
+    """
+    daily_wtd_df = aggregate_wtd_to_daily(wt_df)
+    daily_weather_df = aggregate_weather_to_daily(weather_df)
+    
+    """
+     Organize sensor data into dictionary
+    """
+    # Dictionary of dataframes, keys are sensor names
+    dfs_by_sensor_label = wtd_dictionary_of_dataframes(daily_wtd_df)
+    
+    """
+     Put transects together and append weather data
+    """       
+    dfs_by_transects = transects_and_weather_together(dfs_by_sensor_label, daily_weather_df)
 
-dfs_sliced_relevant_transects = {}
-# Slice by julian day
-jday_bounds = [660, 830] # 660: 22/10/2019; 830: 9/4/2020
-for key, df in dfs_relevant_transects.items():
-    sliced_df = df.loc[jday_bounds[0]:jday_bounds[1]]
-    dfs_sliced_relevant_transects[key] = sliced_df
-
-             
+    return dfs_by_transects           
+                                     
             
 
 #%%
 """
  Plot data sensor by sensor
 """
-
-
-# Plot by sensor pairs
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-
-plt.close('all')
-
-col_labels_not_to_plot = ['julian_day', 'Date', 'T_ave', 'T_min', 'T_max', 'P', 'ET', 'rel_hum', 'windspeed', 'air_pressure']
-
-for transect_name, transect_df in dfs_by_transects.items():
+if __name__ == '__main__':
+    # Plot by sensor pairs
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as ticker
     
-    df_sorted = transect_df.sort_index()
+    # read, preprocess data
+    fn_weather_data = Path('data/weather_station_historic_data.xlsx')
+    dfs_by_transects = main(fn_weather_data)
     
-    fig, ax = plt.subplots(num=transect_name)
-    ax.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
-    ax.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
-    ax.set_ylabel('WTD (m)')
-    ax.set_ylim([-2,.50])
+    plt.close('all')
     
-    # plot Precip and ET
-    ax2 = ax.twinx()
-    ax2.margins(x=0)
-    ax2.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
-    ax2.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
-    ax2.set_ylabel('P-ET (mm/day)')
-    ax2.set_ylim([-50, 100])
-    p_minus_et = df_sorted['P'] - df_sorted['ET']
-    ax2.bar(x=df_sorted['Date'], height=p_minus_et, color='blue', alpha=0.3, width=1)
+    col_labels_not_to_plot = ['julian_day', 'Date', 'T_ave', 'T_min', 'T_max', 'P', 'ET', 'rel_hum', 'windspeed', 'air_pressure']
     
-    for col_name in df_sorted: # iterate dataframe by columns
-         
-        if col_name not in col_labels_not_to_plot:
-            ax.plot(df_sorted['Date'], df_sorted[col_name], 'o', label=col_name)
-
-    ax.legend()
+    for transect_name, transect_df in dfs_by_transects.items():
+        
+        df_sorted = transect_df.sort_index()
+        
+        fig, ax = plt.subplots(num=transect_name)
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
+        ax.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
+        ax.set_ylabel('WTD (m)')
+        ax.set_ylim([-2,.50])
+        
+        # plot Precip and ET
+        ax2 = ax.twinx()
+        ax2.margins(x=0)
+        ax2.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
+        ax2.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
+        ax2.set_ylabel('P-ET (mm/day)')
+        ax2.set_ylim([-50, 100])
+        p_minus_et = df_sorted['P'] - df_sorted['ET']
+        ax2.bar(x=df_sorted['Date'], height=p_minus_et, color='blue', alpha=0.3, width=1)
+        
+        for col_name in df_sorted: # iterate dataframe by columns
+             
+            if col_name not in col_labels_not_to_plot:
+                ax.plot(df_sorted['Date'], df_sorted[col_name], 'o', label=col_name)
+    
+        ax.legend()
     
 
 

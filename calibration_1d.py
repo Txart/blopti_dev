@@ -16,11 +16,13 @@ import fipy as fp
 from fipy.tools import numerix
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 import pandas as pd
-from scipy import interpolate
 from multiprocessing import Pool
 from multiprocessing import cpu_count
 import emcee
+
+import get_data
 
 #%%
 """
@@ -200,21 +202,42 @@ if __name__ == '__main__':
     
     
     #%%
-    """
-    Get sensor data
-    TODO: rewrite for sensors of the same time! MCMC takes care of parallelization
-    """
-    filename = 'fabricated_data.txt'
-    bcleft, bcright, measurements, days, precip, evapotra = read_sensors(filename)
-    boundary = np.array(list(zip(bcleft, bcright)))
+    # """
+    # Get sensor data
+    # TODO: rewrite for sensors of the same time! MCMC takes care of parallelization
+    # """
+    # filename = 'fabricated_data.txt'
+    # bcleft, bcright, measurements, days, precip, evapotra = read_sensors(filename)
+    # boundary = np.array(list(zip(bcleft, bcright)))
     
-    if PLOT_SETUP:
-        plt.figure()
-        for i, line in enumerate(measurements):
-            plt.plot(line, label=str(i))
-        plt.legend()
+    # if PLOT_SETUP:
+    #     plt.figure()
+    #     for i, line in enumerate(measurements):
+    #         plt.plot(line, label=str(i))
+    #     plt.legend()
     
+   #%%
+    """
+    Get data
+     Choose relevant transects.
+     Slice by date
+    """ 
+    fn_weather_data = Path('data/weather_station_historic_data.xlsx')
+    dfs_by_transects = get_data.main(fn_weather_data)
+
+    # Choose transects
+    relevant_transects = ['P002', 'P003', 'P006', 'P009', 'P012', 'P015', 'P016', 'P018', 'P021']
+    dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
+    
+    dfs_sliced_relevant_transects = {}
+    # Slice by julian day
+    jday_bounds = [660, 830] # 660: 22/10/2019; 830: 9/4/2020
+    for key, df in dfs_relevant_transects.items():
+        sliced_df = df.loc[jday_bounds[0]:jday_bounds[1]]
+        dfs_sliced_relevant_transects[key] = sliced_df
+        
     #%%
+    # TODO: CHANGE TO GET DATA FROM DATAFRAMES. ALSO, MORE FLEXIBLE, MORE FUNCTIONAL 
     """
     MCMC parameter estimation
     """ 
