@@ -103,109 +103,114 @@ def confidence_intervals(ci_percents, n_sensors, ndays, n_posterior_samples):
 """
  read from backend
 """
-filename = "mcmc_result_chain.h5"
-reader = emcee.backends.HDFBackend(filename, read_only=True)
-samples = reader.get_chain(discard=0, thin=1, flat=True)
-print(f"Read from backend. \n   Samples shape = {samples.shape}")
-logprobs = reader.get_log_prob(flat=True)
-frac_infinities = 1 - np.count_nonzero(np.isfinite(logprobs))/samples.shape[0]
-print(f"   Fraction of infinities = {frac_infinities * 100:.2f}%")
+def read_from_backend(filename):
+    
+    reader = emcee.backends.HDFBackend(filename, read_only=True)
+    samples = reader.get_chain(discard=0, thin=1, flat=True)
+    print(f"Read from backend. \n   Samples shape = {samples.shape}")
+    logprobs = reader.get_log_prob(flat=True)
+    frac_infinities = 1 - np.count_nonzero(np.isfinite(logprobs))/samples.shape[0]
+    print(f"   Fraction of infinities = {frac_infinities * 100:.2f}%")
+    
+    return reader
 
 #%%
 """
  Corner plot
 """
-import corner
-true_params = [0.1, 0.2, 1, 0.01, 1.1]
-labels = ['s0', 's1', 't0', 't1', 't2']
-fig = corner.corner(samples, labels=labels, truths=true_params)
-savefig = True
-if savefig:
-    fig.savefig("MCMC_corner_result.png")
-
+def corner_plot(samples, savefig=True):
+    import corner
+    labels = ['s0', 's1', 't0', 't1', 't2']
+    fig = corner.corner(samples, labels=labels)
+    if savefig:
+        fig.savefig("MCMC_corner_result.png")
+    
+    return 0
 #%%     
 """
  Sample from resulting posterior.
+ TODO: CHANGE THESE FOR NEW HYDRO ETC.
 """
-N_POSTERIOR_SAMPLES = 10
-post_params = sample_from_posterior(samples, N_POSTERIOR_SAMPLES, logprobs)
-                      
-#%%
-"""
-Run hydro with set of params from the posterior
-"""
-import calibration_1d
-
-bcleft, bcright, measurements, days, precip, evapotra = calibration_1d.read_sensors('fabricated_data.txt')
-boundary = np.array(list(zip(bcleft, bcright)))
-HINI = 8.; nx = 100; dx = 1.; dt = 1.; NDAYS = len(measurements);
-SENSOR_LOCATIONS = [0, 12, 67, 99];
-
-results = []
-for params in post_params:
-    s0 = params[0]; s1 = params[1] 
-    t0 = params[2]; t1 = params[3]; t2 = params[4];
+def xxxxxxxxxxxx(samples, logprobs):
+    N_POSTERIOR_SAMPLES = 10
+    post_params = sample_from_posterior(samples, N_POSTERIOR_SAMPLES, logprobs)
+                          
+    #%%
+    """
+    Run hydro with set of params from the posterior
+    """
+    import calibration_1d
     
-    theta_ini = np.exp(s0 + s1*HINI) 
-    try:
-        simulated_wtd = calibration_1d.hydro_1d(nx, dx, dt, params, theta_ini,
-                                                NDAYS, SENSOR_LOCATIONS, boundary, precip, evapotra)
-    except:
-        print("PROBLEM IN HYDRO WITH PARAMS")
-        continue
+    bcleft, bcright, measurements, days, precip, evapotra = calibration_1d.read_sensors('fabricated_data.txt')
+    boundary = np.array(list(zip(bcleft, bcright)))
+    HINI = 8.; nx = 100; dx = 1.; dt = 1.; NDAYS = len(measurements);
+    SENSOR_LOCATIONS = [0, 12, 67, 99];
     
-    results.append(simulated_wtd.T) # NOTE, appending the transpose!!
-  
-results = np.array(results)
-#%%
-"""
- Compute confidence intervals
-"""
-ci_percents = [20, 50, 90]
-n_sensors = len(SENSOR_LOCATIONS)
-conf_interv_results = confidence_intervals(ci_percents, n_sensors, NDAYS, N_POSTERIOR_SAMPLES)
-
-
-#%%
-"""
- Plot over data, sensor by sensor:
-   - samples from posterior WTD over data
-   - Confidence intervals
-"""
+    results = []
+    for params in post_params:
+        s0 = params[0]; s1 = params[1] 
+        t0 = params[2]; t1 = params[3]; t2 = params[4];
+        
+        theta_ini = np.exp(s0 + s1*HINI) 
+        try:
+            simulated_wtd = calibration_1d.hydro_1d(nx, dx, dt, params, theta_ini,
+                                                    NDAYS, SENSOR_LOCATIONS, boundary, precip, evapotra)
+        except:
+            print("PROBLEM IN HYDRO WITH PARAMS")
+            continue
+        
+        results.append(simulated_wtd.T) # NOTE, appending the transpose!!
+      
+    results = np.array(results)
+    #%%
+    """
+     Compute confidence intervals
+    """
+    ci_percents = [20, 50, 90]
+    n_sensors = len(SENSOR_LOCATIONS)
+    conf_interv_results = confidence_intervals(ci_percents, n_sensors, NDAYS, N_POSTERIOR_SAMPLES)
+    
+    
+    #%%
+    """
+     Plot over data, sensor by sensor:
+       - samples from posterior WTD over data
+       - Confidence intervals
+    """
+                
+    fig,axes = plt.subplots(nrows=2, ncols=2)
+    axes = axes.ravel()
+    
+    fig_ci, axes_ci = plt.subplots(nrows=2, ncols=2)
+    axes_ci = axes_ci.ravel()
+    
+    for sensor_n, sensor_loc in enumerate(SENSOR_LOCATIONS):
+        sensor_simulated_wtd = results[:,sensor_n] # order results by sensors 
+        measured_value_in_sensor = measurements.T[sensor_n]
+        days_x_axis = list(range(0,len(measured_value_in_sensor)))
+        for simu_sensor in sensor_simulated_wtd:
+            axes[sensor_n].plot(days_x_axis, simu_sensor, 'orange', alpha=0.1)
+        
+        # confidence intervals
+        colors = ['blue', 'red', 'yellow']
+        if len(colors) < len(ci_percents):
+            raise ValueError("Too few colors")
+        for nci, ci in enumerate(ci_percents):
+            top_ci = conf_interv_results[sensor_n][:,nci][:,0]
+            bottom_ci = conf_interv_results[sensor_n][:,nci][:,1]
+            axes_ci[sensor_n].fill_between(days_x_axis, top_ci, bottom_ci,
+                                           label=f"{ci}% CI", alpha=0.2, color=colors[nci])
+            axes_ci[sensor_n].plot(days_x_axis, top_ci, color=colors[nci], linewidth=0.2)
+            axes_ci[sensor_n].plot(days_x_axis, bottom_ci, color=colors[nci], linewidth=0.2)
+        
             
-fig,axes = plt.subplots(nrows=2, ncols=2)
-axes = axes.ravel()
-
-fig_ci, axes_ci = plt.subplots(nrows=2, ncols=2)
-axes_ci = axes_ci.ravel()
-
-for sensor_n, sensor_loc in enumerate(SENSOR_LOCATIONS):
-    sensor_simulated_wtd = results[:,sensor_n] # order results by sensors 
-    measured_value_in_sensor = measurements.T[sensor_n]
-    days_x_axis = list(range(0,len(measured_value_in_sensor)))
-    for simu_sensor in sensor_simulated_wtd:
-        axes[sensor_n].plot(days_x_axis, simu_sensor, 'orange', alpha=0.1)
-    
-    # confidence intervals
-    colors = ['blue', 'red', 'yellow']
-    if len(colors) < len(ci_percents):
-        raise ValueError("Too few colors")
-    for nci, ci in enumerate(ci_percents):
-        top_ci = conf_interv_results[sensor_n][:,nci][:,0]
-        bottom_ci = conf_interv_results[sensor_n][:,nci][:,1]
-        axes_ci[sensor_n].fill_between(days_x_axis, top_ci, bottom_ci,
-                                       label=f"{ci}% CI", alpha=0.2, color=colors[nci])
-        axes_ci[sensor_n].plot(days_x_axis, top_ci, color=colors[nci], linewidth=0.2)
-        axes_ci[sensor_n].plot(days_x_axis, bottom_ci, color=colors[nci], linewidth=0.2)
-    
         
-    
-    # true, measured values    
-    axes[sensor_n].plot(days_x_axis, measured_value_in_sensor, 'black')
-    axes_ci[sensor_n].plot(days_x_axis, measured_value_in_sensor, 'black')
-    
-    axes[sensor_n].set_title(f"sensor_n {sensor_n} at location {sensor_loc}")
-
-fig_ci.legend()
-plt.show()
+        # true, measured values    
+        axes[sensor_n].plot(days_x_axis, measured_value_in_sensor, 'black')
+        axes_ci[sensor_n].plot(days_x_axis, measured_value_in_sensor, 'black')
         
+        axes[sensor_n].set_title(f"sensor_n {sensor_n} at location {sensor_loc}")
+    
+    fig_ci.legend()
+    plt.show()
+            
