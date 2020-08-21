@@ -26,6 +26,11 @@ import emcee
 import get_data
 import hydro_calibration
 
+#%%
+# Turn off NumPy automatic parallelization
+import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
 
 #%%
 """
