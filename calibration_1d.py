@@ -247,14 +247,5 @@ elif N_CPU == 1: # single processor
      
     sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend)
     sampler.run_mcmc(pos, MCMC_STEPS, progress=True);
+
  
-#%%
-"""
- Read data and plot
-"""
-import analyze_calibr_1d
-
-reader = analyze_calibr_1d.read_from_backend(fname)
-samples = reader.get_chain(discard=0, thin=1, flat=True)
-
-analyze_calibr_1d.corner_plot(samples, savefig=True)

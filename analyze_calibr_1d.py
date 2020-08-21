@@ -7,6 +7,7 @@ Created on Tue Aug 11 13:03:42 2020
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import emcee
 
 #%%
@@ -114,6 +115,9 @@ def read_from_backend(filename):
     
     return reader
 
+fname = "mcmc_result_chain.h5"
+reader = read_from_backend(fname)
+
 #%%
 """
  Corner plot
@@ -126,6 +130,80 @@ def corner_plot(samples, savefig=True):
         fig.savefig("MCMC_corner_result.png")
     
     return 0
+
+samples = reader.get_chain(discard=0, thin=1, flat=True)
+corner_plot(samples, savefig=True)
+
+#%%
+"""
+ Plot Sy and T
+"""
+reader = emcee.backends.HDFBackend(filename="mcmc_result_chain.h5", read_only=True)
+flat_samples = reader.get_chain(discard=0, thin=1, flat=True)
+n_samples = len(flat_samples)
+
+# Conf intervals
+conf_int_perc = np.array([99.8,10]) # % of ci to be computed. Put largest first
+conf_int_indices_to_pick = (100. - conf_int_perc) * n_samples / 100
+conf_int_indices_to_pick = conf_int_indices_to_pick.astype(dtype=int)
+log_probs = reader.get_log_prob(flat=True)
+sorted_flatsamples = flat_samples[-log_probs.argsort()] # samples sorted by log_probs
+
+def Sy(h, s0, s1):
+    return s1 * np.exp(s0 + s1 * h)
+    
+def T(h, t0, t1, t2):
+    return t0 * np.exp(t1 + t2*h)
+
+h_grid = np.arange(-3, 1, 0.01)
+# h_2d_grid = np.array([h_grid,]*n_samples)
+sto_array = np.array([Sy(h_grid, s0, s1) for s0, s1, _, _, _ in sorted_flatsamples])
+tra_array = np.array([T(h_grid, t0, t1, t2) for _, _, t0, t1, t2 in sorted_flatsamples])
+
+sto_ci = [0] * len(conf_int_perc) # [[Smin_ci1, Smax_ci1], [Smin_ci2, Smax_ci2], ...]
+tra_ci = [0] * len(conf_int_perc)
+for i, ci in enumerate(conf_int_indices_to_pick):
+    # storage
+    sto_arr_ci = sto_array[:ci]
+    sto_max_ci = sto_arr_ci.max(axis=0)
+    sto_min_ci = sto_arr_ci.min(axis=0)
+    sto_ci[i] = [sto_min_ci, sto_max_ci]
+    # transmissivity
+    tra_arr_ci = tra_array[:ci]
+    tra_max_ci = tra_arr_ci.max(axis=0)
+    tra_min_ci = tra_arr_ci.min(axis=0)
+    tra_ci[i] = [tra_min_ci, tra_max_ci]
+       
+# Plot all curves with some alpha    
+fig, ax = plt.subplots(nrows=2, ncols=1)
+axS = ax[0]; axT = ax[1]
+axS.set_title('Sy(h)'); axT.set_title('T(h)')
+axS.set_xlabel('Sy'); axS.set_ylabel('h(m)')
+axT.set_xlabel('T'); axT.set_ylabel('h(m)')
+
+for s, t in zip(sto_array, tra_array):
+    axS.plot(s, h_grid, alpha=0.05, color='black')
+    axT.plot(t, h_grid, alpha=0.05, color='black')
+
+axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
+axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
+
+# Plot confidence intervals and ML curves for S and T
+fig, ax = plt.subplots(nrows=2, ncols=1)
+axS = ax[0]; axT = ax[1]
+axS.set_title('Sy(h)'); axT.set_title('T(h)')
+axS.set_xlabel('Sy'); axS.set_ylabel('h(m)')
+axT.set_xlabel('T'); axT.set_ylabel('h(m)')
+
+for i, ci in enumerate(conf_int_perc):
+    axS.fill_betweenx(h_grid, sto_ci[i][1], sto_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+    axT.fill_betweenx(h_grid, tra_ci[i][1], tra_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+
+fig.legend()
+
+axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
+axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
+
 #%%     
 """
  Sample from resulting posterior.
