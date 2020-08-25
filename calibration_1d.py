@@ -228,7 +228,7 @@ if N_CPU > 1:
         nwalkers, ndim = pos.shape
          
         # save chain to HDF5 file
-        fname = "mcmc_result_chain.h5"
+        fname = "mcmc_result_chain_new.h5"
         backend = emcee.backends.HDFBackend(fname)
         backend.reset(nwalkers, ndim)
          
