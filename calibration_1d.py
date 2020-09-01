@@ -218,20 +218,20 @@ def gen_positions_for_walkers(n_walkers, n_params):
  
 if N_CPU > 1:
     # Turn off NumPy automatic parallelization
-    import os
-    os.environ["OMP_NUM_THREADS"] = "1"
-    
-    pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
-       
-    nwalkers, ndim = pos.shape
-         
-    # save chain to HDF5 file
-
-    fname = "mcmc_result_chain.h5"
-    backend = emcee.backends.HDFBackend(fname)
-    backend.reset(nwalkers, ndim)
     
     with Pool(N_CPU) as pool:
+        import os
+        os.environ["OMP_NUM_THREADS"] = "1"
+    
+        pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
+       
+        nwalkers, ndim = pos.shape
+         
+        # save chain to HDF5 file
+
+        fname = "mcmc_result_chain.h5"
+        backend = emcee.backends.HDFBackend(fname)
+        backend.reset(nwalkers, ndim)
         
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool,
                                         backend=backend)
