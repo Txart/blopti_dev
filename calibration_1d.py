@@ -221,17 +221,18 @@ if N_CPU > 1:
     import os
     os.environ["OMP_NUM_THREADS"] = "1"
     
-    with Pool(N_CPU) as pool:
-        pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
+    pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
        
-        nwalkers, ndim = pos.shape
+    nwalkers, ndim = pos.shape
          
-        # save chain to HDF5 file
+    # save chain to HDF5 file
 
-        fname = "mcmc_result_chain.h5"
-        backend = emcee.backends.HDFBackend(fname)
-        backend.reset(nwalkers, ndim)
-         
+    fname = "mcmc_result_chain.h5"
+    backend = emcee.backends.HDFBackend(fname)
+    backend.reset(nwalkers, ndim)
+    
+    with Pool(N_CPU) as pool:
+        
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool,
                                         backend=backend)
         sampler.run_mcmc(pos, MCMC_STEPS, progress=True)
