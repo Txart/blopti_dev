@@ -306,7 +306,7 @@ if __name__ == '__main__':
     fn_weather_data = Path('data/weather_station_historic_data.xlsx')
     dfs_by_transects = main(fn_weather_data)
     
-    plt.close('all')
+    # plt.close('all')
     
     col_labels_not_to_plot = ['julian_day', 'Date', 'T_ave', 'T_min', 'T_max', 'P', 'ET', 'rel_hum', 'windspeed', 'air_pressure']
     
