@@ -26,11 +26,6 @@ import emcee
 import get_data
 import hydro_calibration
 
-#%%
-# Turn off NumPy automatic parallelization
-import os
-
-os.environ["OMP_NUM_THREADS"] = "1"
 
 #%%
 """
@@ -222,6 +217,10 @@ def gen_positions_for_walkers(n_walkers, n_params):
     return true_values + noise
  
 if N_CPU > 1:
+    # Turn off NumPy automatic parallelization
+    import os
+    os.environ["OMP_NUM_THREADS"] = "1"
+    
     with Pool(N_CPU) as pool:
         pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
        
@@ -229,7 +228,7 @@ if N_CPU > 1:
          
         # save chain to HDF5 file
         fname = "mcmc_result_chain.h5"
-        backend = emcee.backends.HDFBackend(fname)
+        backend = emcee.backends.HDFBackend(fname, read_only=False)
         backend.reset(nwalkers, ndim)
          
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool,
