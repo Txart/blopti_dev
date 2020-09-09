@@ -117,7 +117,7 @@ DEM_RESOLUTION = 100 # m/pixel
 sensor_locations = {'P021':[0, 175]}  # sensor locations in metres. E.g., [0,175] means the second sensor is 175 metres away from the canal. Sensor in canal always = 0.
 surface_elev_pixels = {'P021':[2,4,5]} # m asl
 mesh_dx = {'P021':1} # in m
-mesh_dt = {'P021':1} # in days
+mesh_dt = {'P021':0.001} # in days
 # TODO: Make something smart about mesh dimensions
 mesh_nx = {'P021':sensor_locations['P021'][-1]} # Rather dumb method. If second sensor too many meters away, this would have to change or very slow hydro!
 
@@ -178,10 +178,14 @@ def log_likelihood(params):
         
         s0 = params[0]; s1 = params[1]
         theta_ini = np.exp(s0 + s1*hini)
-        
+               
         try:
-            simulated_wtd = hydro_calibration.hydro_1d(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+        # CHEBYSHEV
+            simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dt, params, ndays, sensor_locations,
                                                        boundary_values_left, boundary_values_right, precip, evapotra, ele)
+        # FIPY
+        #     simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+        #                                                boundary_values_left, boundary_values_right, precip, evapotra, ele)
         except: # if error in hydro computation
             print("###### SOME ERROR IN HYDRO #######")
             return -np.inf

@@ -9,7 +9,7 @@ from fipy.tools import numerix
 import numpy as np
 import pandas as pd
 
-def hydro_1d(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
+def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele):
     
     mesh = fp.Grid1D(nx=nx, dx=dx)
@@ -66,6 +66,100 @@ def hydro_1d(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         WTD_from_theta_sol.append(h_sol_sensors - ele_sensors) # WTD = -(ele - h)
         
     return np.array(WTD_from_theta_sol)
+
+def hydro_1d_chebyshev(theta_ini, N, dt, params, ndays, sensor_loc,
+             boundary_values_left, boundary_values_right, precip, evapotra, ele):
+    
+    s0 = params[0]; s1 = params[1];
+    t0 = params[1]; t1 = params[3]; t2 = params[4]
+    
+    # Nonlinear heat equation Using Chebyshev:
+    #    du/dt = d/dx(A(u)*du/dx) + S is equivalent to solving
+    #    du/dt = A * u'' + dA/du * u'^2 + S
+    #    BC: u'(-1) = 0; u(1) = 0; IC: u = h(0)
+    # Here u is same as theta above, i.e., volumetric water content
+    
+    # TODO: What happens with distances when using Chebyshev?
+    #       100m between sensors equals to what?
+    #       Ignoring this for now
+    
+    # IC
+    v_old = theta_ini
+    
+    if len(theta_ini) != N+1: #chebyshev adds one point to the mesh
+        raise ValueError("initial value not same size as discretization")
+    
+    D,x = cheb(N)
+    D2 = D @ D # matrix multiplication
+        
+    def dif(u, params):
+        # Dffusivity
+        s0 = params[0]; s1 = params[1];
+        t0 = params[1]; t1 = params[3]; t2 = params[4]
+        
+        D = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.)
+        
+        return D
+    
+    def dif_prime(u, params):
+        # Derivative of diffusivity with respect to theta
+        # Have to hardcode the derivative
+        s0 = params[0]; s1 = params[1];
+        t0 = params[1]; t1 = params[3]; t2 = params[4]
+        
+        D_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
+        
+        return D_prime
+     
+    WTD_from_theta_sol = [] # returned quantity    
+    
+    # Solve iteratively
+    internal_niter = int(1/dt)
+    for day in range(ndays):
+        # Update source term 
+        source = precip[day] - evapotra[day]
+        # Update BC
+        v_old[-1] = boundary_values_left[day]
+        
+        # solve dt forward in time
+        for i in range(internal_niter):
+            v_new = v_old + dt*(dif_prime(v_old, params) * (D @ v_old)**2 +
+                                dif(v_old, params) * D2 @ v_old + source)
+            # Reset BC
+            v_new[-1] = boundary_values_left[day] # Diri
+            nbc =  D[0,1:] @ v_new[1:] # No flux Neumann BC
+            v_new[0] = 1/D[0,0] * (0. - nbc) # In general, change 0 for flux value
+        
+            v_old = v_new
+            
+        # Compare with measured and append result
+        theta_sol = v_new
+        theta_sol_sensors = np.array([theta_sol[sl-1] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
+        ele_sensors = np.array([ele[sl-1] for sl in sensor_loc[1:]])
+        h_sol_sensors = (np.log(theta_sol_sensors) -s0)/s1
+        
+        WTD_from_theta_sol.append(h_sol_sensors - ele_sensors) # WTD = -(ele - h)
+        
+    return np.array(WTD_from_theta_sol)
+
+#%%
+def cheb(N):
+    '''Chebyshev polynomial differentiation matrix.
+       Ref.: https://github.com/nikola-m/another-chebpy/blob/master/chebPy.py
+    '''
+    x = np.cos(np.pi*np.linspace(0,N,N+1)/N)
+    c=np.zeros(N+1)
+    c[0]=2.
+    c[1:N]=1.
+    c[N]=2.
+    c = c * (-1)**np.linspace(0,N,N+1)
+    X = np.tile(x, (N+1,1))
+    dX = X.T - X # other way around!
+    D = np.dot(c.reshape(N+1,1),(1./c).reshape(1,N+1))
+    D = D / (dX+np.eye(N+1))
+    D = D - np.diag( D.T.sum(axis=0) )
+    return D,x
+
 
 def fabricate_data(nx, dt, params, HINI, NDAYS, SENSOR_LOCATIONS, MAX_HEAD_BOUNDARIES=5., MAX_SOURCE=3., filename="fabricated_data.txt"):
 
