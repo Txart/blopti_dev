@@ -220,9 +220,7 @@ if N_CPU > 1:
     # Turn off NumPy automatic parallelization
     
     with Pool(N_CPU) as pool:
-        import os
-        os.environ["OMP_NUM_THREADS"] = "1"
-    
+            
         pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
        
         nwalkers, ndim = pos.shape
