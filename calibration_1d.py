@@ -35,7 +35,7 @@ parser = argparse.ArgumentParser(description='Run MCMC parameter estimation')
  
 parser.add_argument('--ncpu', default=1, help='(int) Number of processors', type=int)
 parser.add_argument('-cl','--chainlength', default=100, help='(int) Length of MCMC chain', type=int)
-parser.add_argument('-w','--nwalkers', default=14, help='(int) Number of walkers in parameter space', type=int)
+parser.add_argument('-w','--nwalkers', default=10, help='(int) Number of walkers in parameter space', type=int)
 args = parser.parse_args()
  
 N_CPU = args.ncpu
@@ -114,12 +114,12 @@ for key, df in dfs_relevant_transects.items():
 # TODO: Maybe put all this in an excel    
 # Data invented. Check from raster data
 DEM_RESOLUTION = 100 # m/pixel
-sensor_locations = {'P021':[0, 175]}  # sensor locations in metres. E.g., [0,175] means the second sensor is 175 metres away from the canal. Sensor in canal always = 0.
+sensor_locations = {'P021':[0, 10]}  # sensor locations in metres. E.g., [0,175] means the second sensor is 175 metres away from the canal. Sensor in canal always = 0.
 surface_elev_pixels = {'P021':[2,4,5]} # m asl
 mesh_dx = {'P021':1} # in m
-mesh_dt = {'P021':1} # in days
+mesh_dt = {'P021':0.001} # in days
 # TODO: Make something smart about mesh dimensions
-mesh_nx = {'P021':sensor_locations['P021'][-1]} # Rather dumb method. If second sensor too many meters away, this would have to change or very slow hydro!
+mesh_nx = {'P021':10} 
 
 # put all data into one meta-dictionary ordered by transect
 data_dict = {}
@@ -138,6 +138,8 @@ N_PARAMS = 5
 SENSOR_MEASUREMENT_ERR = 0.05 # metres. Theoretically, 1mm
  
 def log_likelihood(params):
+    
+    s0 = params[0]; s1 = params[1]
     
     log_like = 0 # result from this function. Will sum over all transects.
 
@@ -166,28 +168,42 @@ def log_likelihood(params):
         
         if len(sensor_column_names) == 2: # P0xx transects
             boundary_values_left = measurements['sensor_0'].to_numpy()[1:] # 1st value is ini cond
-            boundary_values_right = None
-            test_measurements = measurements['sensor_1'].to_numpy()[1:]
+            h_boundary_values_left = ele[0] + boundary_values_left
+            theta_boundary_values_left = np.exp(s0 + s1*h_boundary_values_left)
+            theta_boundary_values_right = None
+            h_test_measurements = ele[-1] + measurements['sensor_1'].to_numpy()[1:]
             
         elif len(sensor_column_names) > 2: # DOSAN and DAYUN sensors
             last_sensor = len(sensor_column_names)
             last_sensor_name = 'sensor_' + str(last_sensor) 
             boundary_values_left = measurements['sensor_0'].to_numpy()[1:]
+            h_boundary_values_left = ele[0] + boundary_values_left
+
             boundary_values_right = measurements[last_sensor_name].to_numpy()[1:]
-            test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
+            h_boundary_values_right = ele[-1] + boundary_values_right
+
+            # TODO: the following line might not be perfect
+            h_test_measurements = ele[sensor_locations] + measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
+
+            
         
-        s0 = params[0]; s1 = params[1]
         theta_ini = np.exp(s0 + s1*hini)
-        
+               
         try:
-            simulated_wtd = hydro_calibration.hydro_1d(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
-                                                       boundary_values_left, boundary_values_right, precip, evapotra, ele)
+        # CHEBYSHEV
+            dt = 1e-3 # TODO: Change to good stability criterion
+            simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
+                                                       theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
+        # FIPY
+        #     simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+        #                                                theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
         except: # if error in hydro computation
             print("###### SOME ERROR IN HYDRO #######")
             return -np.inf
         else:
             sigma2 = SENSOR_MEASUREMENT_ERR ** 2
-            log_like += -0.5 * np.sum((test_measurements - simulated_wtd) ** 2 / sigma2 + np.log(sigma2))
+            log_like += -0.5 * np.sum((h_test_measurements - simulated_wtd) ** 2 / sigma2 +
+                                      np.log(sigma2))
     
     return log_like
  
