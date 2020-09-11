@@ -42,12 +42,12 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         theta.updateOld()
         
         # BC and Source/sink update
-        theta_left = numerix.exp(s0 + s1*boundary_values_left[day]) # left BC is always Dirichlet
+        theta_left = boundary_values_left[day] # left BC is always Dirichlet
         theta.constrain(theta_left, where=mesh.facesLeft)
         if boundary_values_right == None: # Pxx sensors. Neuman BC on the right
             theta.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight)
         else:
-            theta_right = numerix.exp(s0 + s1*boundary_values_right[day])
+            theta_right = boundary_values_right[day]
             theta.constrain(theta_right, where=mesh.facesRight)
             
         P = precip[day]; ET = evapotra[day]   
@@ -67,7 +67,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         
     return np.array(WTD_from_theta_sol)
 
-def hydro_1d_chebyshev(theta_ini, N, dt, params, ndays, sensor_loc,
+def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele):
     
     s0 = params[0]; s1 = params[1];
@@ -79,17 +79,18 @@ def hydro_1d_chebyshev(theta_ini, N, dt, params, ndays, sensor_loc,
     #    BC: u'(-1) = 0; u(1) = 0; IC: u = h(0)
     # Here u is same as theta above, i.e., volumetric water content
     
-    # TODO: What happens with distances when using Chebyshev?
-    #       100m between sensors equals to what?
-    #       Ignoring this for now
-    
     # IC
-    v_old = theta_ini
+    v_old = theta_ini[:]
     
     if len(theta_ini) != N+1: #chebyshev adds one point to the mesh
         raise ValueError("initial value not same size as discretization")
     
     D,x = cheb(N)
+    # domain of actual x is [0, N*dx]
+    # In order to map it to [-L, L] = [-N*dx/2, +N*dx/2] in cheby space,
+    # we need to rescale accordingly:
+    L = N*dx/2
+    x = L * x; D = D/L
     D2 = D @ D # matrix multiplication
         
     def dif(u, params):
@@ -110,27 +111,50 @@ def hydro_1d_chebyshev(theta_ini, N, dt, params, ndays, sensor_loc,
         D_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
         
         return D_prime
+    
+    def forward_Euler(v_old, dt, params):
+        return v_old + dt*( dif_prime(v_old, params) * (D @ v_old)**2 +
+                           dif(v_old, params) * D2 @ v_old + source)
+    
+    def RK4(v_old, dt, params):
+    # 4th order Runge-Kutta
+        def rhs(u):
+            # RHS of the PDE: du/dt = rhs(u)
+            return dif_prime(u, params) * (D @ u)**2 + dif(u, params) * D2 @ u + source
+        # Diri BC have to be specified every time the rhs is evaluated!
+        k1 = rhs(v_old); k1[-1] = 0 # BC
+        k2 = rhs(v_old + dt/2*k1); k2[-1] = 0 # BC
+        k3 = rhs(v_old + dt/2*k2); k3[-1] = 0 # BC
+        k4 = rhs(v_old + dt*k3); k4[-1] = 0 # BC
+        
+        return v_old + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
      
     WTD_from_theta_sol = [] # returned quantity    
     
     # Solve iteratively
     internal_niter = int(1/dt)
+
+
     for day in range(ndays):
         # Update source term 
-        source = precip[day] - evapotra[day]
+        source = (precip[day] - evapotra[day]) / internal_niter
         # Update BC
-        v_old[-1] = boundary_values_left[day]
+        v_old[-1] = boundary_values_left[day] # left BC is always Dirichlet
         
         # solve dt forward in time
         for i in range(internal_niter):
-            v_new = v_old + dt*(dif_prime(v_old, params) * (D @ v_old)**2 +
-                                dif(v_old, params) * D2 @ v_old + source)
+            
+            # v_new = forward_Euler(v_old, dt, params)
+            v_new = RK4(v_old, dt, params)
+
             # Reset BC
             v_new[-1] = boundary_values_left[day] # Diri
             nbc =  D[0,1:] @ v_new[1:] # No flux Neumann BC
-            v_new[0] = 1/D[0,0] * (0. - nbc) # In general, change 0 for flux value
+            flux = 0.
+            v_new[0] = 1/D[0,0] * (flux - nbc)
         
             v_old = v_new
+            
             
         # Compare with measured and append result
         theta_sol = v_new
@@ -140,6 +164,8 @@ def hydro_1d_chebyshev(theta_ini, N, dt, params, ndays, sensor_loc,
         
         WTD_from_theta_sol.append(h_sol_sensors - ele_sensors) # WTD = -(ele - h)
         
+         
+    
     return np.array(WTD_from_theta_sol)
 
 #%%

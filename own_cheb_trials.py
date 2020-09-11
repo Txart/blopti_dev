@@ -41,10 +41,11 @@ c_start_time = time.time()
 
 N = 10
 D,x = cheb(N)
+x = x/5; D=D/5 # Dimension of the domain
 D2 = D @ D # matrix multiplication
 
 # IC
-INI_VALUE = 1
+INI_VALUE = 100.0
 v_ini = np.ones(shape=x.shape)*INI_VALUE
 # BC
 v_ini[-1] = 0
@@ -73,23 +74,39 @@ def dif_u(u):
     D_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
     
     return D_prime
+
+def forward_Euler(v_old, dt):
+    return v_old + dt*( dif_u(v_old) * (D @ v_old)**2 + dif(v_old) * D2 @ v_old + source)
+
+
+
+def RK4(v_old, dt):
+    # 4th order Runge-Kutta
+    def rhs(u):
+        # RHS of the PDE: du/dt = rhs(u)
+        return dif_u(u) * (D @ u)**2 + dif(u) * D2 @ u + source
+    # Diri BC have to be specified every time the rhs is evaluated!
+    k1 = rhs(v_old); k1[-1] = 0 # BC
+    k2 = rhs(v_old + dt/2*k1); k2[-1] = 0 # BC
+    k3 = rhs(v_old + dt/2*k2); k3[-1] = 0 # BC
+    k4 = rhs(v_old + dt*k3); k4[-1] = 0 # BC
+    
+    return v_old + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
+    
  
 # Solve iteratively
-# dt = 1e-2/N
 dt = 0.001
-TIMESTEPS = 10
+TIMESTEPS = 3
 niter = int(TIMESTEPS/dt)
 v_plot = [0]*(niter+1)
 v_plot[0] = v_old
 for i in range(niter):
-    print(np.sum(v_old))
-    v_new = v_old + dt*( dif_u(v_old) * (D @ v_old)**2 + dif(v_old) * D2 @ v_old + source)
+    v_new = forward_Euler(v_old, dt)
     v_new[-1] = 0 # Diri BC
     nbc =  D[0,1:] @ v_new[1:] # Neumann BC
     v_new[0] = -1/D[0,0] * nbc
     v_old = v_new
-    
-    
+     
     v_plot[i+1] = v_old
 
 print(f"Cheb time(s) = {time.time() - c_start_time}")  
@@ -113,11 +130,14 @@ for j in range(v_plot.shape[0]):
 import fipy as fp
 from fipy.tools import numerix
 
-N = N+1 # cheby starts at pos=0
+N=10
+# N = N+1 # cheby starts at pos=0
+
+dx = 1.
 
 f_start_time = time.time()
 
-mesh = fp.Grid1D(nx=N, dx=2/N) # from -1 to 1
+mesh = fp.Grid1D(nx=N, dx=dx)
 
 v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=1.)
 
@@ -136,6 +156,8 @@ def dif_fp(u):
 
 # Boussinesq eq. for theta
 eq = fp.TransientTerm() == fp.ExplicitDiffusionTerm(coeff=dif_fp(v_fp)) + source
+
+
 
 sol_fp = [0] * (niter+1) # returned quantity
 sol_fp[0] = np.array(v_fp.value)
@@ -169,7 +191,7 @@ print(f"FiPy time(s) = {time.time() - f_start_time}")
 # Waterfall plot
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.set_title('FiPy')
+ax.set_title(f'FiPy, dx={dx}, N={N}')
 
 plot_sol_fp = np.array(sol_fp)
 plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
@@ -182,4 +204,15 @@ for j in range(plot_sol_fp.shape[0]):
     
 #%%
 #    Compare fipy vs cheby 
+
+# In order to compare, add 0 at beginning of fipy solution (which is in the centers of cells)
+plot_sol_fp_padded = np.pad(array=plot_sol_fp, pad_width=[[0,0],[1,0]])
     
+# Waterfall plot of difference
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_title('abs(FiPy-cheby)')
+
+for j in range(plot_sol_fp.shape[0]):
+    ys = j*np.ones(plot_sol_fp_padded.shape[1])
+    ax.plot(x, ys, abs(plot_sol_fp_padded[j,:]-v_plot[j,:][::-1]))
