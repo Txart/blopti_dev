@@ -34,7 +34,7 @@ Parse command-line arguments
 parser = argparse.ArgumentParser(description='Run MCMC parameter estimation')
  
 parser.add_argument('--ncpu', default=1, help='(int) Number of processors', type=int)
-parser.add_argument('-cl','--chainlength', default=100, help='(int) Length of MCMC chain', type=int)
+parser.add_argument('-cl','--chainlength', default=1, help='(int) Length of MCMC chain', type=int)
 parser.add_argument('-w','--nwalkers', default=10, help='(int) Number of walkers in parameter space', type=int)
 args = parser.parse_args()
  
@@ -178,25 +178,26 @@ def log_likelihood(params):
             last_sensor_name = 'sensor_' + str(last_sensor) 
             boundary_values_left = measurements['sensor_0'].to_numpy()[1:]
             h_boundary_values_left = ele[0] + boundary_values_left
-
+            theta_boundary_values_left = np.exp(s0 + s1*h_boundary_values_left)
             boundary_values_right = measurements[last_sensor_name].to_numpy()[1:]
             h_boundary_values_right = ele[-1] + boundary_values_right
+            theta_boundary_values_right = np.exp(s0 + s1*h_boundary_values_right)
 
             # TODO: the following line might not be perfect
             h_test_measurements = ele[sensor_locations] + measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
 
-            
-        
         theta_ini = np.exp(s0 + s1*hini)
-               
+        
+        print(f">>>>> params: {params}")
         try:
         # CHEBYSHEV
             dt = 1e-3 # TODO: Change to good stability criterion
             simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
-                                                       theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
+                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
+            # print(simulated_wtd)
         # FIPY
-        #     simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
-        #                                                theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
+            # simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+            #                                             theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
         except: # if error in hydro computation
             print("###### SOME ERROR IN HYDRO #######")
             return -np.inf

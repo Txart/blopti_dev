@@ -57,7 +57,7 @@ source = 2. # P- ET
 
 def dif(u):
     # Dffusivity
-    params = [2.0, 1.1, 1.0, 2.0, 1.3] # s0, s1, t0, t1, t2
+    params = [2.0, 1.1, 1.0, 2.0, 2.3] # s0, s1, t0, t1, t2
     s0 = params[0]; s1 = params[1];
     t0 = params[1]; t1 = params[3]; t2 = params[4];
     
@@ -68,7 +68,7 @@ def dif(u):
 def dif_u(u):
     # Derivative of diffusivity with respect to theta
     # Have to hardcode the derivative
-    params = [2.0, 1.1, 1.0, 2.0, 1.3] # s0, s1, t0, t1, t2
+    params = [2.0, 1.1, 1.0, 2.0, 2.3] # s0, s1, t0, t1, t2
     s0 = params[0]; s1 = params[1];
     t0 = params[1]; t1 = params[3]; t2 = params[4];
     D_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)

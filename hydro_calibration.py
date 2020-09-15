@@ -63,15 +63,21 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         theta_sol_sensors = np.array([theta_sol[sl-1] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
         ele_sensors = np.array([ele[sl-1] for sl in sensor_loc[1:]])
         h_sol_sensors = (np.log(theta_sol_sensors) -s0)/s1
-        WTD_from_theta_sol.append(h_sol_sensors - ele_sensors) # WTD = -(ele - h)
+        # Sensor measurements are positive downwards. In order to compare
+        # with them, we need the local definition of WTD = (ele - h), i.e.,
+        # positive downwards
+        wtd_sol = ele_sensors - h_sol_sensors
+        WTD_from_theta_sol.append(wtd_sol[0]) 
         
+
+    
     return np.array(WTD_from_theta_sol)
 
 def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele):
     
     s0 = params[0]; s1 = params[1];
-    t0 = params[1]; t1 = params[3]; t2 = params[4]
+    t0 = params[2]; t1 = params[3]; t2 = params[4]
     
     # Nonlinear heat equation Using Chebyshev:
     #    du/dt = d/dx(A(u)*du/dx) + S is equivalent to solving
@@ -96,44 +102,46 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     def dif(u, params):
         # Dffusivity
         s0 = params[0]; s1 = params[1];
-        t0 = params[1]; t1 = params[3]; t2 = params[4]
+        t0 = params[2]; t1 = params[3]; t2 = params[4]
         
-        D = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.)
+        diffusivity = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.)
         
-        return D
+        return diffusivity
     
     def dif_prime(u, params):
         # Derivative of diffusivity with respect to theta
         # Have to hardcode the derivative
         s0 = params[0]; s1 = params[1];
-        t0 = params[1]; t1 = params[3]; t2 = params[4]
+        t0 = params[2]; t1 = params[3]; t2 = params[4]
         
-        D_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
+        diffusivity_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
         
-        return D_prime
+        return diffusivity_prime
     
     def forward_Euler(v_old, dt, params):
         return v_old + dt*( dif_prime(v_old, params) * (D @ v_old)**2 +
-                           dif(v_old, params) * D2 @ v_old + source)
+                            dif(v_old, params) * D2 @ v_old + source)
     
     def RK4(v_old, dt, params):
+
     # 4th order Runge-Kutta
-        def rhs(u):
+        def rhs(u, params):
             # RHS of the PDE: du/dt = rhs(u)
             return dif_prime(u, params) * (D @ u)**2 + dif(u, params) * D2 @ u + source
+        
         # Diri BC have to be specified every time the rhs is evaluated!
-        k1 = rhs(v_old); k1[-1] = 0 # BC
-        k2 = rhs(v_old + dt/2*k1); k2[-1] = 0 # BC
-        k3 = rhs(v_old + dt/2*k2); k3[-1] = 0 # BC
-        k4 = rhs(v_old + dt*k3); k4[-1] = 0 # BC
+        k1 = rhs(v_old, params); k1[-1] = 0 # BC
+        k2 = rhs(v_old + dt/2*k1, params); k2[-1] = 0 # BC
+        k3 = rhs(v_old + dt/2*k2, params); k3[-1] = 0 # BC
+        k4 = rhs(v_old + dt*k3, params); k4[-1] = 0 # BC
         
         return v_old + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
      
     WTD_from_theta_sol = [] # returned quantity    
     
     # Solve iteratively
-    internal_niter = int(1/dt)
-
+    # internal_niter = int(1/dt)
+    internal_niter = 10
 
     for day in range(ndays):
         # Update source term 
@@ -145,7 +153,7 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         for i in range(internal_niter):
             
             # v_new = forward_Euler(v_old, dt, params)
-            v_new = RK4(v_old, dt, params)
+            v_new = forward_Euler(v_old, dt, params)
 
             # Reset BC
             v_new[-1] = boundary_values_left[day] # Diri
@@ -155,18 +163,16 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         
             v_old = v_new
             
-            
         # Compare with measured and append result
-        theta_sol = v_new
+        theta_sol = v_new[:][::-1] # We've got to reverse because of chebyshev transform!
+        
         theta_sol_sensors = np.array([theta_sol[sl-1] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
-        ele_sensors = np.array([ele[sl-1] for sl in sensor_loc[1:]])
-        h_sol_sensors = (np.log(theta_sol_sensors) -s0)/s1
+        h_sol_sensors = (np.log(theta_sol_sensors) - s0)/s1
+
+        WTD_from_theta_sol.append(h_sol_sensors[0])
         
-        WTD_from_theta_sol.append(h_sol_sensors - ele_sensors) # WTD = -(ele - h)
-        
-         
-    
-    return np.array(WTD_from_theta_sol)
+      
+    return np.array(h_sol_sensors)
 
 #%%
 def cheb(N):

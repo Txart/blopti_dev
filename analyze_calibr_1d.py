@@ -82,7 +82,7 @@ def confidence_intervals(ci_percents, n_sensors, ndays, n_posterior_samples):
     """
 
     # translate CI percentages to how many items to pick up from array
-    n_elements_to_pick = np.array(ci_percents)/100.*N_POSTERIOR_SAMPLES 
+    n_elements_to_pick = np.array(ci_percents)/100.*n_posterior_samples 
     n_elements_to_pick = n_elements_to_pick.astype(int)
     
     conf_interv_results = np.zeros(shape=(n_sensors, ndays, len(ci_percents), 2))
@@ -115,8 +115,10 @@ def read_from_backend(filename):
     
     return reader
 
+# fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
 fname = "mcmc_result_chain.h5"
 reader = read_from_backend(fname)
+samples = reader.get_chain(discard=0, thin=1, flat=True)
 fat_samples = reader.get_chain(flat=False)
 
 #%%
@@ -132,7 +134,6 @@ def corner_plot(samples, savefig=True):
     
     return 0
 
-samples = reader.get_chain(discard=0, thin=1, flat=True)
 corner_plot(samples, savefig=True)
 
 #%%
