@@ -115,10 +115,10 @@ def read_from_backend(filename):
     
     return reader
 
-# fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
-fname = "mcmc_result_chain.h5"
+fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
+# fname = "mcmc_result_chain.h5"
 reader = read_from_backend(fname)
-samples = reader.get_chain(discard=0, thin=1, flat=True)
+flat_samples = reader.get_chain(discard=0, thin=1, flat=True)
 fat_samples = reader.get_chain(flat=False)
 
 #%%
@@ -134,13 +134,12 @@ def corner_plot(samples, savefig=True):
     
     return 0
 
-corner_plot(samples, savefig=True)
+corner_plot(flat_samples, savefig=True)
 
 #%%
 """
  Plot Sy and T
 """
-reader = emcee.backends.HDFBackend(filename="mcmc_result_chain.h5", read_only=True)
 flat_samples = reader.get_chain(discard=0, thin=1, flat=True)
 n_samples = len(flat_samples)
 
@@ -185,8 +184,10 @@ axS.set_xlabel('Sy'); axS.set_ylabel('h(m)')
 axT.set_xlabel('T'); axT.set_ylabel('h(m)')
 
 for s, t in zip(sto_array, tra_array):
-    axS.plot(s, h_grid, alpha=0.05, color='black')
-    axT.plot(t, h_grid, alpha=0.05, color='black')
+    # axS.plot(s, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
+    # axT.plot(t, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
+    axS.plot(s, h_grid, alpha=1/256, color='black')
+    axT.plot(t, h_grid, alpha=1/256, color='black')
 
 axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
 axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')

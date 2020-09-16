@@ -35,7 +35,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     
     WTD_from_theta_sol = [] # returned quantity
     
-    MAX_SWEEPS = 100
+    MAX_SWEEPS = 1000
     
     for day in range(ndays):
         
@@ -61,16 +61,10 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         # Append to list
         theta_sol = theta.value
         theta_sol_sensors = np.array([theta_sol[sl-1] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
-        ele_sensors = np.array([ele[sl-1] for sl in sensor_loc[1:]])
         h_sol_sensors = (np.log(theta_sol_sensors) -s0)/s1
-        # Sensor measurements are positive downwards. In order to compare
-        # with them, we need the local definition of WTD = (ele - h), i.e.,
-        # positive downwards
-        wtd_sol = ele_sensors - h_sol_sensors
-        WTD_from_theta_sol.append(wtd_sol[0]) 
-        
 
-    
+        WTD_from_theta_sol.append(h_sol_sensors[0]) 
+        
     return np.array(WTD_from_theta_sol)
 
 def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
@@ -85,6 +79,7 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     #    BC: u'(-1) = 0; u(1) = 0; IC: u = h(0)
     # Here u is same as theta above, i.e., volumetric water content
     
+  
     # IC
     v_old = theta_ini[:]
     
@@ -118,17 +113,17 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         
         return diffusivity_prime
     
-    def forward_Euler(v_old, dt, params):
-        return v_old + dt*( dif_prime(v_old, params) * (D @ v_old)**2 +
-                            dif(v_old, params) * D2 @ v_old + source)
-    
-    def RK4(v_old, dt, params):
-
-    # 4th order Runge-Kutta
-        def rhs(u, params):
+   
+    def rhs(u, params):
             # RHS of the PDE: du/dt = rhs(u)
             return dif_prime(u, params) * (D @ u)**2 + dif(u, params) * D2 @ u + source
-        
+    
+    def forward_Euler(v_old, dt, params):
+        return v_old + dt*rhs(v_old, params)
+    
+    def RK4(v_old, dt, params):
+        # 4th order Runge-Kutta
+                       
         # Diri BC have to be specified every time the rhs is evaluated!
         k1 = rhs(v_old, params); k1[-1] = 0 # BC
         k2 = rhs(v_old + dt/2*k1, params); k2[-1] = 0 # BC
@@ -140,8 +135,7 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     WTD_from_theta_sol = [] # returned quantity    
     
     # Solve iteratively
-    # internal_niter = int(1/dt)
-    internal_niter = 10
+    internal_niter = int(1/dt)
 
     for day in range(ndays):
         # Update source term 
@@ -152,8 +146,8 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         # solve dt forward in time
         for i in range(internal_niter):
             
-            # v_new = forward_Euler(v_old, dt, params)
             v_new = forward_Euler(v_old, dt, params)
+            # v_new = RK4(v_old, dt, params)
 
             # Reset BC
             v_new[-1] = boundary_values_left[day] # Diri
@@ -170,9 +164,8 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         h_sol_sensors = (np.log(theta_sol_sensors) - s0)/s1
 
         WTD_from_theta_sol.append(h_sol_sensors[0])
-        
-      
-    return np.array(h_sol_sensors)
+          
+    return np.array(WTD_from_theta_sol)
 
 #%%
 def cheb(N):
