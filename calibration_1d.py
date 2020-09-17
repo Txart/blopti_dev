@@ -246,7 +246,7 @@ if N_CPU > 1:
 
         fname = "mcmc_result_chain.h5"
         backend = emcee.backends.HDFBackend(fname)
-        backend.reset(nwalkers, ndim)
+        # backend.reset(nwalkers, ndim) # commenting this line: continue from stored markovchain
         
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool,
                                         backend=backend)

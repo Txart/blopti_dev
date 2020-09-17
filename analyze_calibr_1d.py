@@ -118,8 +118,29 @@ def read_from_backend(filename):
 fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
 # fname = "mcmc_result_chain.h5"
 reader = read_from_backend(fname)
-flat_samples = reader.get_chain(discard=0, thin=1, flat=True)
 fat_samples = reader.get_chain(flat=False)
+#%% 
+# Take a look at walkers and autocorrelation time
+
+nparams = fat_samples.shape[2]
+fig, axes = plt.subplots(nparams, sharex=True)
+
+labels = ["s0", "s1", "t0", 't1', 't2']
+for i in range(nparams):
+    ax = axes[i]
+    ax.plot(fat_samples[:, :, i], "k", alpha=0.3)
+    ax.set_xlim(0, len(fat_samples))
+    ax.set_ylabel(labels[i])
+    ax.yaxis.set_label_coords(-0.1, 0.5)
+
+axes[-1].set_xlabel("step number");
+
+tau = reader.get_autocorr_time()
+print(tau)
+#%%
+# Thin and discard samples
+flat_samples = reader.get_chain(discard=1000, thin=100, flat=True)
+
 
 #%%
 """
@@ -135,6 +156,9 @@ def corner_plot(samples, savefig=True):
     return 0
 
 corner_plot(flat_samples, savefig=True)
+
+
+
 
 #%%
 """
@@ -209,24 +233,7 @@ fig.legend()
 axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
 axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
 
-#%% 
-# Take a look at walkers and autocorrelation time
 
-nparams = fat_samples.shape[2]
-fig, axes = plt.subplots(nparams, sharex=True)
-
-labels = ["s0", "s1", "t0", 't1', 't2']
-for i in range(nparams):
-    ax = axes[i]
-    ax.plot(fat_samples[:, :, i], "k", alpha=0.3)
-    ax.set_xlim(0, len(fat_samples))
-    ax.set_ylabel(labels[i])
-    ax.yaxis.set_label_coords(-0.1, 0.5)
-
-axes[-1].set_xlabel("step number");
-
-tau = reader.get_autocorr_time()
-print(tau)
 #%%     
 """
  Sample from resulting posterior.
