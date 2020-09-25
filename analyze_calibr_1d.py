@@ -119,13 +119,14 @@ fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
 # fname = "mcmc_result_chain.h5"
 reader = read_from_backend(fname)
 fat_samples = reader.get_chain(flat=False)
+
 #%% 
 # Take a look at walkers and autocorrelation time
 
 nparams = fat_samples.shape[2]
 fig, axes = plt.subplots(nparams, sharex=True)
 
-labels = ["s0", "s1", "t0", 't1', 't2']
+labels = ["s1", "s2", 't1', 't2']
 for i in range(nparams):
     ax = axes[i]
     ax.plot(fat_samples[:, :, i], "k", alpha=0.3)
@@ -137,10 +138,13 @@ axes[-1].set_xlabel("step number");
 
 tau = reader.get_autocorr_time()
 print(tau)
+
 #%%
 # Thin and discard samples
-flat_samples = reader.get_chain(discard=1000, thin=100, flat=True)
-
+DISCARD = 20000
+THIN = 50
+flat_samples = reader.get_chain(discard=DISCARD, thin=THIN, flat=True)
+print(f"flat samples shape: {flat_samples.shape}")
 
 #%%
 """
@@ -157,28 +161,33 @@ def corner_plot(samples, savefig=True):
 
 corner_plot(flat_samples, savefig=True)
 
-
-
+#%%
+# ML and ranges for values
+flat_samples_all = reader.get_chain(flat=True)
+log_probs_all = reader.get_log_prob(flat=True)
+max_lp = np.max(log_probs_all)
+max_likelihood_params = flat_samples_all[np.where(log_probs_all==max_lp)[0]][0]
+   
 
 #%%
 """
  Plot Sy and T
 """
-flat_samples = reader.get_chain(discard=0, thin=1, flat=True)
-n_samples = len(flat_samples)
-
-# Conf intervals
-conf_int_perc = np.array([90,10]) # % of ci to be computed. Put largest first
-conf_int_indices_to_pick = (100. - conf_int_perc) * n_samples / 100
-conf_int_indices_to_pick = conf_int_indices_to_pick.astype(dtype=int)
-log_probs = reader.get_log_prob(flat=True)
-sorted_flatsamples = flat_samples[-log_probs.argsort()] # samples sorted by log_probs
-
 def Sy(h, s0, s1):
     return s1 * np.exp(s0 + s1 * h)
     
 def T(h, t0, t1, t2):
     return t0 * np.exp(t1 + t2*h)
+
+n_samples = len(flat_samples)
+
+# Conf intervals
+conf_int_perc = np.array([99.5,10]) # % of ci to be computed. Put largest first
+conf_int_indices_to_pick = (100. - conf_int_perc) * n_samples / 100
+conf_int_indices_to_pick = conf_int_indices_to_pick.astype(dtype=int)
+log_probs = reader.get_log_prob(flat=True, discard=DISCARD, thin=THIN)
+sorted_flatsamples = flat_samples[-log_probs.argsort()] # samples sorted by log_probs
+
 
 h_grid = np.arange(-3, 1, 0.01)
 # h_2d_grid = np.array([h_grid,]*n_samples)
@@ -218,8 +227,8 @@ axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='pea
 
 # Plot confidence intervals and ML curves for S and T
 fig, ax = plt.subplots(nrows=2, ncols=1)
+# CI
 axS = ax[0]; axT = ax[1]
-axS.set_title('Sy(h)'); axT.set_title('T(h)')
 axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
 axS.set_xlabel('Sy'); axS.set_ylabel('h(m)')
 axT.set_xlabel('T'); axT.set_ylabel('h(m)')
@@ -227,6 +236,16 @@ axT.set_xlabel('T'); axT.set_ylabel('h(m)')
 for i, ci in enumerate(conf_int_perc):
     axS.fill_betweenx(h_grid, sto_ci[i][1], sto_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
     axT.fill_betweenx(h_grid, tra_ci[i][1], tra_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+
+# ML
+s0ML = max_likelihood_params[0]
+s1ML = max_likelihood_params[1]
+t0ML = max_likelihood_params[2]
+t1ML = max_likelihood_params[3]
+t2ML = max_likelihood_params[4]
+
+axS.plot(Sy(h_grid, s0ML, s1ML), h_grid, label='ML')
+axT.plot(T(h_grid, t0ML, t1ML, t2ML), h_grid, label='ML')
 
 fig.legend()
 

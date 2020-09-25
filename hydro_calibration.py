@@ -9,8 +9,11 @@ from fipy.tools import numerix
 import numpy as np
 import pandas as pd
 
+#%%
 def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele):
+    # TODO: implement zeta and new parameterization
+    raise NotImplementedError("Not imiplemented yet!")
     
     mesh = fp.Grid1D(nx=nx, dx=dx)
     
@@ -60,7 +63,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         
         # Append to list
         theta_sol = theta.value
-        theta_sol_sensors = np.array([theta_sol[sl-1] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
+        theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the fitness estimation
         h_sol_sensors = (np.log(theta_sol_sensors) -s0)/s1
 
         WTD_from_theta_sol.append(h_sol_sensors[0]) 
@@ -68,10 +71,54 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     return np.array(WTD_from_theta_sol)
 
 def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
-             boundary_values_left, boundary_values_right, precip, evapotra, ele):
+             boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, bottom):
+    """
+    Returns zeta = -(ele - h) to compare directly with sensor values.
     
-    s0 = params[0]; s1 = params[1];
-    t0 = params[2]; t1 = params[3]; t2 = params[4]
+    Parameters
+    ----------
+    theta_ini : TYPE
+        DESCRIPTION.
+    N : TYPE
+        DESCRIPTION.
+    dx : TYPE
+        DESCRIPTION.
+    dt : TYPE
+        DESCRIPTION.
+    params : TYPE
+        DESCRIPTION.
+    ndays : TYPE
+        DESCRIPTION.
+    sensor_loc : TYPE
+        DESCRIPTION.
+    boundary_values_left : TYPE
+        DESCRIPTION.
+    boundary_values_right : TYPE
+        DESCRIPTION.
+    precip : TYPE
+        DESCRIPTION.
+    evapotra : TYPE
+        DESCRIPTION.
+    ele_interp : scipy interpolation function
+        We need to pass the interpolation function bc Chebyshev transforms 
+        to cos(x) space
+    bottom: float
+        depth of impermeable bottom below ref level z=0. In m. Negative downwards.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    
+    s1 = params[0]; s2 = params[1];
+    t1 = params[2]; t2 = params[3]
     
     # Nonlinear heat equation Using Chebyshev:
     #    du/dt = d/dx(A(u)*du/dx) + S is equivalent to solving
@@ -93,30 +140,56 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     L = N*dx/2
     x = L * x; D = D/L
     D2 = D @ D # matrix multiplication
+    ele_cheby = ele_interp((x+L)[::-1])[::-1]
         
     def dif(u, params):
         # Dffusivity
-        s0 = params[0]; s1 = params[1];
-        t0 = params[2]; t1 = params[3]; t2 = params[4]
+        s1 = params[0]; s2 = params[1];
+        t1 = params[2]; t2 = params[3]
         
-        diffusivity = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.)
+        #diffusivity = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.) # Old version
+        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
+        diffusivity = np.exp(t1 + t2*ele_cheby) / (t2*s2) * 1/(u + C) * (
+            np.exp(-s1*t2/s2) * (s2*u + s2*C)**(t2/s2) - np.exp(t2*(bottom-ele_cheby)))
         
         return diffusivity
     
     def dif_prime(u, params):
         # Derivative of diffusivity with respect to theta
         # Have to hardcode the derivative
-        s0 = params[0]; s1 = params[1];
-        t0 = params[2]; t1 = params[3]; t2 = params[4]
+        s1 = params[0]; s2 = params[1];
+        t1 = params[2]; t2 = params[3];
         
-        diffusivity_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
+        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
+        # diffusivity_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
+        diffusivity_prime = np.exp(t1+t2*ele_cheby)/(t2*s2*(u + C)**2) * (
+            np.exp(-s1*t2/s2)*s2**(t2/s2) * (t2-s2)/s2 * (u + C)**(t2/s2) +
+            np.exp(t2*(bottom - ele_cheby)))
+        
         
         return diffusivity_prime
     
+    def zeta_from_theta(x, s1, s2, ele_cheby):
+        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
+        return (np.log(s2*(x+C)) -s1) / s2
+    
+    # TODO: REMOVE IN THE FUTURE; ONLY D NEEDED
+    def S(u, params):
+        s1 = params[0]; s2 = params[1];
+        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
+        return s2*(u + C)
+    
+    def T(u, params):
+        s1 = params[0]; s2 = params[1];
+        t1 = params[2]; t2 = params[3];
+        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
+        return np.exp(t1+t2*ele_cheby)/t2 * (np.exp(-s1*t2/s2) * (s2*u + s2*C)**(t2/s2) -
+                                             np.exp(t2*(bottom-ele_cheby)))
+    
    
     def rhs(u, params):
-            # RHS of the PDE: du/dt = rhs(u)
-            return dif_prime(u, params) * (D @ u)**2 + dif(u, params) * D2 @ u + source
+        # RHS of the PDE: du/dt = rhs(u)
+        return dif_prime(u, params) * (D @ u)**2 + dif(u, params) * D2 @ u + source
     
     def forward_Euler(v_old, dt, params):
         return v_old + dt*rhs(v_old, params)
@@ -160,10 +233,15 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         # Compare with measured and append result
         theta_sol = v_new[:][::-1] # We've got to reverse because of chebyshev transform!
         
-        theta_sol_sensors = np.array([theta_sol[sl-1] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
-        h_sol_sensors = (np.log(theta_sol_sensors) - s0)/s1
+        theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
+        ele_cheby_sensors = np.array([ele_cheby[::-1][sl] for sl in sensor_loc[1:]])
+        zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, s1, s2, ele_cheby_sensors)
 
-        WTD_from_theta_sol.append(h_sol_sensors[0])
+        WTD_from_theta_sol.append(zeta_sol_sensors[0])
+        
+        print(f" theta = {theta_sol_sensors}")
+        print(f" zeta = {zeta_sol_sensors}")
+        
           
     return np.array(WTD_from_theta_sol)
 

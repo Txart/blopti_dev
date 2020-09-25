@@ -35,7 +35,7 @@ parser = argparse.ArgumentParser(description='Run MCMC parameter estimation')
  
 parser.add_argument('--ncpu', default=1, help='(int) Number of processors', type=int)
 parser.add_argument('-cl','--chainlength', default=1, help='(int) Length of MCMC chain', type=int)
-parser.add_argument('-w','--nwalkers', default=10, help='(int) Number of walkers in parameter space', type=int)
+parser.add_argument('-w','--nwalkers', default=8, help='(int) Number of walkers in parameter space', type=int)
 args = parser.parse_args()
  
 N_CPU = args.ncpu
@@ -114,86 +114,101 @@ for key, df in dfs_relevant_transects.items():
 # TODO: Maybe put all this in an excel    
 # Data invented. Check from raster data
 DEM_RESOLUTION = 100 # m/pixel
-sensor_locations = {'P021':[0, 10]}  # sensor locations in metres. E.g., [0,175] means the second sensor is 175 metres away from the canal. Sensor in canal always = 0.
-surface_elev_pixels = {'P021':[2,4,5]} # m asl
-mesh_dx = {'P021':1} # in m
+sensor_locations = {'P021':[0, -1]}  # sensor locations wrt position in grid
+transect_pixels = {'P021': 3} # length in pixels
+surface_elev_pixels = {'P021':[2,4,5]} # m above common ref point z=0
+peat_depth = {'P021':-2} # m above common ref point z=0
 mesh_dt = {'P021':0.001} # in days
 # TODO: Make something smart about mesh dimensions
-mesh_nx = {'P021':10} 
+mesh_nx = {'P021':10}
 
 # put all data into one meta-dictionary ordered by transect
 data_dict = {}
 for tran in relevant_transects:
     data_dict[tran] = {'df':dfs_sliced_relevant_transects[tran],
                        'sen_loc':sensor_locations[tran],
-                       'dx':mesh_dx[tran], 'dt':mesh_dt[tran], 'nx':mesh_nx[tran],
-                       'surface_elev_pixels':surface_elev_pixels[tran]}  
+                       'dt':mesh_dt[tran], 'nx':mesh_nx[tran],
+                       'surface_elev_pixels':surface_elev_pixels[tran],
+                       'peat_depth':peat_depth[tran],
+                       'transect_pixels': transect_pixels[tran]}  
+    
+    
+
+
 #%%
 
 """
 MCMC parameter estimation
 """ 
-N_PARAMS = 5
+
+def theta_from_zeta(z, s1, s2, ele, peat_depth):
+    theta = np.exp(s1)/s2 * (np.exp(s2*z) - np.exp(s2*(peat_depth-ele)))
+    return theta
+
+N_PARAMS = 4
 
 SENSOR_MEASUREMENT_ERR = 0.05 # metres. Theoretically, 1mm
  
 def log_likelihood(params):
     
-    s0 = params[0]; s1 = params[1]
+    s1 = params[0]; s2 = params[1]
     
     log_like = 0 # result from this function. Will sum over all transects.
 
     for transect_name, dic in data_dict.items():
         df = dic['df']
         sensor_locations = dic['sen_loc']
-        dx = dic['dx']; dt = dic['dt']; nx = dic['nx']
+        dt = dic['dt']; nx = dic['nx']
         surface_elev_pixels = dic['surface_elev_pixels']
+        peat_depth = dic['peat_depth']
+        transect_pixels = dic['transect_pixels']
+        
+        transect_length = (transect_pixels - 1) * DEM_RESOLUTION
+        dx = int(transect_length/nx)
+        
+        if transect_pixels != len(surface_elev_pixels):
+            raise ValueError('DEM length must be the same as transect length ')
         
         sensor_column_names = [name for name in df.columns if 'sensor' in name]
         measurements = df[sensor_column_names]
         
-        x_meters = np.arange(0, len(surface_elev_pixels)*DEM_RESOLUTION, DEM_RESOLUTION)
-        ele_interp = interpolate.interp1d(x=x_meters, y=surface_elev_pixels, kind='linear')
-        ele = ele_interp(np.arange(0, nx, dx))
+        # Interpolation of DEM ele and of initial WTD        
+        grid_meters = np.arange(0, len(surface_elev_pixels)*DEM_RESOLUTION, DEM_RESOLUTION)
+        ele_interp = interpolate.interp1d(x=grid_meters, y=surface_elev_pixels, kind='linear')
+        ele = ele_interp(np.arange(0, nx*dx, dx))
         
-        # set interpolation
         sensor_WTD_ini = measurements.to_numpy()[0]
-        sensor_h_ini = [ele[value-1] + sensor_WTD_ini[pos] for pos,value in enumerate(sensor_locations)]
-        hini_interp = interpolate.interp1d(x=sensor_locations, y= sensor_h_ini,kind='linear')
-        hini = hini_interp(np.arange(0, nx, dx))
+        sensor_zeta_ini = [sensor_WTD_ini[pos] for pos,value in enumerate(sensor_locations)]
+        zeta_ini_interp = interpolate.interp1d(x=grid_meters[sensor_locations], y=sensor_zeta_ini,kind='linear')
+        zeta_ini = zeta_ini_interp(np.arange(0, nx*dx, dx))
+        theta_ini = theta_from_zeta(zeta_ini, s1, s2, ele, peat_depth)
 
         ndays = measurements.shape[0] - 1 # first day is ini cond
         precip = df['P'].to_numpy()
         evapotra = df['ET'].to_numpy()
         
         if len(sensor_column_names) == 2: # P0xx transects
-            boundary_values_left = measurements['sensor_0'].to_numpy()[1:] # 1st value is ini cond
-            h_boundary_values_left = ele[0] + boundary_values_left
-            theta_boundary_values_left = np.exp(s0 + s1*h_boundary_values_left)
+            zeta_boundary_values_left = measurements['sensor_0'].to_numpy()[1:] # 1st value is ini cond
+            theta_boundary_values_left = theta_from_zeta(zeta_boundary_values_left, s1, s2, ele[0], peat_depth)
             theta_boundary_values_right = None
-            h_test_measurements = ele[-1] + measurements['sensor_1'].to_numpy()[1:]
+            zeta_test_measurements = measurements['sensor_1'].to_numpy()[1:]
             
         elif len(sensor_column_names) > 2: # DOSAN and DAYUN sensors
             last_sensor = len(sensor_column_names)
             last_sensor_name = 'sensor_' + str(last_sensor) 
-            boundary_values_left = measurements['sensor_0'].to_numpy()[1:]
-            h_boundary_values_left = ele[0] + boundary_values_left
-            theta_boundary_values_left = np.exp(s0 + s1*h_boundary_values_left)
-            boundary_values_right = measurements[last_sensor_name].to_numpy()[1:]
-            h_boundary_values_right = ele[-1] + boundary_values_right
-            theta_boundary_values_right = np.exp(s0 + s1*h_boundary_values_right)
+            zeta_boundary_values_left = measurements['sensor_0'].to_numpy()[1:]
+            theta_boundary_values_left = theta_from_zeta(zeta_boundary_values_left, s1, s2, ele[0], peat_depth)
+            zeta_boundary_values_right = measurements[last_sensor_name].to_numpy()[1:]
+            theta_boundary_values_right = theta_from_zeta(zeta_boundary_values_right, s1, s2, ele[-1], peat_depth)
 
             # TODO: the following line might not be perfect
-            h_test_measurements = ele[sensor_locations] + measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
-
-        theta_ini = np.exp(s0 + s1*hini)
+            zeta_test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
         
-        print(f">>>>> params: {params}")
         try:
         # CHEBYSHEV
-            dt = 1e-3 # TODO: Change to good stability criterion
+            dt = 1e-4 # TODO: Change to good stability criterion
             simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
-                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele)
+                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
             # print(simulated_wtd)
         # FIPY
             # simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
@@ -203,17 +218,17 @@ def log_likelihood(params):
             return -np.inf
         else:
             sigma2 = SENSOR_MEASUREMENT_ERR ** 2
-            log_like += -0.5 * np.sum((h_test_measurements - simulated_wtd) ** 2 / sigma2 +
+            log_like += -0.5 * np.sum((zeta_test_measurements - simulated_wtd) ** 2 / sigma2 +
                                       np.log(sigma2))
     
     return log_like
  
 def log_prior(params):
-    s0 = params[0]; s1 = params[1] 
-    t0 = params[2]; t1 = params[3]; t2 = params[4];
+    s1 = params[0]; s2 = params[1] 
+    t1 = params[2]; t2 = params[3]
     
     # uniform priors everywhere.
-    if -0.1<t0<1000 and -0.1<t1<10 and -0.1<t2<10  and -0.1<s0<100 and -0.1<s1<100: 
+    if -1000<t1<1000 and -0.1<t2<1000  and -1000<s1<1000 and -0.1<s2<1000: 
         return 0.0
     return -np.inf        
  
@@ -228,7 +243,7 @@ def log_probability(params):
  
 def gen_positions_for_walkers(n_walkers, n_params):
       # Generate based on true values + noise. TODO: change in the future!
-    ini_values = [2.0, 1.1, 1.0, 2.0, 1.3] # s0, s1, t0, t1, t2
+    ini_values = [2.0, 1.1, 1.0, 2.0] # s1, s2, t1, t2
     true_values = np.array([ini_values,]*n_walkers)
     noise = (np.random.rand(n_walkers, n_params) -0.5)*0.2 # random numbers in (-0.1, +0.1)
     return true_values + noise
