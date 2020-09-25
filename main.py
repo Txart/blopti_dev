@@ -173,6 +173,11 @@ for i in range(0,N_ITER):
                                                       diri_bc=DIRI_BC, neumann_bc = None, plotOpt=True, remove_ponding_water=True,
                                                       P=P, ET=ET, dt=TIMESTEP)
     
+    
+        
+        
+        
+    
     # water_blocked_canals = sum(np.subtract(wt_canals[1:], oWTcanlist[1:]))
     
     # cum_Vdp_nodams = 21088.453521509597
@@ -194,6 +199,17 @@ for i in range(0,N_ITER):
     #                             + str(N_BLOCKS) + "    " + str(N_ITER) + "    " + str(DAYS) + "    "
     #                             + str(time.ctime()) + "    " + str(water_blocked_canals)
     #                           )
+
+#%%
+# Translate WT to CO2 and subsidence
+# def CO2(wtd, peat_type):
+import rasterio
+# TODO put into initial file handling
+landcover_fn = 'data\Landcover2017_clip.tif'
+with rasterio.open(landcover_fn) as lc:
+    lc = lc.read(1)
+    
+    
 """
 Save WTD data if simulating a year
 """
