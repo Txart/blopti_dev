@@ -117,7 +117,7 @@ DEM_RESOLUTION = 100 # m/pixel
 sensor_locations = {'P021':[0, -1]}  # sensor locations wrt position in grid
 transect_pixels = {'P021': 3} # length in pixels
 surface_elev_pixels = {'P021':[2,4,5]} # m above common ref point z=0
-peat_depth = {'P021':-2} # m above common ref point z=0
+peat_depth = {'P021':-4} # m below lowest peat surface elevation
 mesh_dt = {'P021':0.001} # in days
 # TODO: Make something smart about mesh dimensions
 mesh_nx = {'P021':10}
@@ -141,8 +141,8 @@ for tran in relevant_transects:
 MCMC parameter estimation
 """ 
 
-def theta_from_zeta(z, s1, s2, ele, peat_depth):
-    theta = np.exp(s1)/s2 * (np.exp(s2*z) - np.exp(s2*(peat_depth-ele)))
+def theta_from_zeta(z, s1, s2, b):
+    theta = np.exp(s1)/s2 * (np.exp(s2*z) - np.exp(s2*b))
     return theta
 
 N_PARAMS = 4
@@ -176,12 +176,13 @@ def log_likelihood(params):
         grid_meters = np.arange(0, len(surface_elev_pixels)*DEM_RESOLUTION, DEM_RESOLUTION)
         ele_interp = interpolate.interp1d(x=grid_meters, y=surface_elev_pixels, kind='linear')
         ele = ele_interp(np.arange(0, nx*dx, dx))
+        b = peat_depth + ele.min() - ele
         
         sensor_WTD_ini = measurements.to_numpy()[0]
         sensor_zeta_ini = [sensor_WTD_ini[pos] for pos,value in enumerate(sensor_locations)]
         zeta_ini_interp = interpolate.interp1d(x=grid_meters[sensor_locations], y=sensor_zeta_ini,kind='linear')
         zeta_ini = zeta_ini_interp(np.arange(0, nx*dx, dx))
-        theta_ini = theta_from_zeta(zeta_ini, s1, s2, ele, peat_depth)
+        theta_ini = theta_from_zeta(zeta_ini, s1, s2, b)
 
         ndays = measurements.shape[0] - 1 # first day is ini cond
         precip = df['P'].to_numpy()
@@ -189,7 +190,7 @@ def log_likelihood(params):
         
         if len(sensor_column_names) == 2: # P0xx transects
             zeta_boundary_values_left = measurements['sensor_0'].to_numpy()[1:] # 1st value is ini cond
-            theta_boundary_values_left = theta_from_zeta(zeta_boundary_values_left, s1, s2, ele[0], peat_depth)
+            theta_boundary_values_left = theta_from_zeta(zeta_boundary_values_left, s1, s2, b[0])
             theta_boundary_values_right = None
             zeta_test_measurements = measurements['sensor_1'].to_numpy()[1:]
             
@@ -197,9 +198,9 @@ def log_likelihood(params):
             last_sensor = len(sensor_column_names)
             last_sensor_name = 'sensor_' + str(last_sensor) 
             zeta_boundary_values_left = measurements['sensor_0'].to_numpy()[1:]
-            theta_boundary_values_left = theta_from_zeta(zeta_boundary_values_left, s1, s2, ele[0], peat_depth)
+            theta_boundary_values_left = theta_from_zeta(zeta_boundary_values_left, s1, s2, b[0])
             zeta_boundary_values_right = measurements[last_sensor_name].to_numpy()[1:]
-            theta_boundary_values_right = theta_from_zeta(zeta_boundary_values_right, s1, s2, ele[-1], peat_depth)
+            theta_boundary_values_right = theta_from_zeta(zeta_boundary_values_right, s1, s2, b[-1])
 
             # TODO: the following line might not be perfect
             zeta_test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]

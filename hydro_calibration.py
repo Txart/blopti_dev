@@ -71,7 +71,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     return np.array(WTD_from_theta_sol)
 
 def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
-             boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, bottom):
+             boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, PEAT_DEPTH):
     """
     Returns zeta = -(ele - h) to compare directly with sensor values.
     
@@ -102,8 +102,9 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     ele_interp : scipy interpolation function
         We need to pass the interpolation function bc Chebyshev transforms 
         to cos(x) space
-    bottom: float
-        depth of impermeable bottom below ref level z=0. In m. Negative downwards.
+    PEAT_DEPTH: float
+        depth of impermeable bottom from lowest point of peat surface (m)
+        Negative downwards.
 
     Raises
     ------
@@ -118,7 +119,6 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     """
     
     s1 = params[0]; s2 = params[1];
-    t1 = params[2]; t2 = params[3]
     
     # Nonlinear heat equation Using Chebyshev:
     #    du/dt = d/dx(A(u)*du/dx) + S is equivalent to solving
@@ -141,55 +141,42 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     x = L * x; D = D/L
     D2 = D @ D # matrix multiplication
     ele_cheby = ele_interp((x+L)[::-1])[::-1]
-        
-    def dif(u, params):
-        # Dffusivity
+    b_cheby = PEAT_DEPTH + ele_cheby.min() - ele_cheby
+      
+    def S(u, params, b):
         s1 = params[0]; s2 = params[1];
-        t1 = params[2]; t2 = params[3]
-        
-        #diffusivity = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.) # Old version
-        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
-        diffusivity = np.exp(t1 + t2*ele_cheby) / (t2*s2) * 1/(u + C) * (
-            np.exp(-s1*t2/s2) * (s2*u + s2*C)**(t2/s2) - np.exp(t2*(bottom-ele_cheby)))
-        
-        return diffusivity
+        return s2 * (u + np.exp(s1 + s2*b)/s2)
     
-    def dif_prime(u, params):
+    def T(u, params, b):
+        s1 = params[0]; s2 = params[1];
+        t1 = params[2]; t2 = params[3];
+        return np.exp(t1)/t2 * (np.power(s2 * np.exp(-s1) * u + np.exp(s2*b), t2/s2) - np.exp(t2*b))
+    
+    def dif(u, params, b):
+        # Diffusivity
+        return T(u, params, b) * np.power(S(u, params, b), -1)
+    
+    def dif_prime(u, params, b):
         # Derivative of diffusivity with respect to theta
         # Have to hardcode the derivative
         s1 = params[0]; s2 = params[1];
         t1 = params[2]; t2 = params[3];
-        
-        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
-        # diffusivity_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
-        diffusivity_prime = np.exp(t1+t2*ele_cheby)/(t2*s2*(u + C)**2) * (
-            np.exp(-s1*t2/s2)*s2**(t2/s2) * (t2-s2)/s2 * (u + C)**(t2/s2) +
-            np.exp(t2*(bottom - ele_cheby)))
-        
+    
+        T_prime = np.exp(t1-s1) * np.power(s2/np.exp(s1)* u + np.exp(s2*b), (t2-s2)/s2)
+        S_prime = s2
+
+        diffusivity_prime = (S(u, params, b) * T_prime - 
+                             T(u, params, b) * S_prime) * np.power(S(u, params, b), -2)        
         
         return diffusivity_prime
     
-    def zeta_from_theta(x, s1, s2, ele_cheby):
-        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
-        return (np.log(s2*(x+C)) -s1) / s2
-    
-    # TODO: REMOVE IN THE FUTURE; ONLY D NEEDED
-    def S(u, params):
-        s1 = params[0]; s2 = params[1];
-        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
-        return s2*(u + C)
-    
-    def T(u, params):
-        s1 = params[0]; s2 = params[1];
-        t1 = params[2]; t2 = params[3];
-        C = np.exp(s1+s2*(bottom - ele_cheby))/s2
-        return np.exp(t1+t2*ele_cheby)/t2 * (np.exp(-s1*t2/s2) * (s2*u + s2*C)**(t2/s2) -
-                                             np.exp(t2*(bottom-ele_cheby)))
+    def zeta_from_theta(x, s1, s2, b):
+        return np.log(np.exp(s2*b) + s2*np.exp(-s1)*x) / s2
     
    
     def rhs(u, params):
         # RHS of the PDE: du/dt = rhs(u)
-        return dif_prime(u, params) * (D @ u)**2 + dif(u, params) * D2 @ u + source
+        return dif_prime(u, params, b_cheby) * (D @ u)**2 + dif(u, params, b_cheby) * D2 @ u + source
     
     def forward_Euler(v_old, dt, params):
         return v_old + dt*rhs(v_old, params)
@@ -234,8 +221,8 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         theta_sol = v_new[:][::-1] # We've got to reverse because of chebyshev transform!
         
         theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
-        ele_cheby_sensors = np.array([ele_cheby[::-1][sl] for sl in sensor_loc[1:]])
-        zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, s1, s2, ele_cheby_sensors)
+        b_cheby_sensors = np.array([b_cheby[::-1][sl] for sl in sensor_loc[1:]])
+        zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, s1, s2, b_cheby_sensors)
 
         WTD_from_theta_sol.append(zeta_sol_sensors[0])
         
