@@ -141,8 +141,8 @@ print(tau)
 
 #%%
 # Thin and discard samples
-DISCARD = 20000
-THIN = 50
+DISCARD = 0
+THIN = 1
 flat_samples = reader.get_chain(discard=DISCARD, thin=THIN, flat=True)
 print(f"flat samples shape: {flat_samples.shape}")
 
@@ -173,26 +173,26 @@ max_likelihood_params = flat_samples_all[np.where(log_probs_all==max_lp)[0]][0]
 """
  Plot Sy and T
 """
-def Sy(h, s0, s1):
-    return s1 * np.exp(s0 + s1 * h)
+def Sy(zeta, s1, s2):
+    return np.exp(s1 + s2 * zeta)
     
-def T(h, t0, t1, t2):
-    return t0 * np.exp(t1 + t2*h)
+def T(zeta, t1, t2):
+    return np.exp(t1 + t2*zeta)
 
 n_samples = len(flat_samples)
 
 # Conf intervals
-conf_int_perc = np.array([99.5,10]) # % of ci to be computed. Put largest first
+conf_int_perc = np.array([90,10]) # % of ci to be computed. Put largest first
 conf_int_indices_to_pick = (100. - conf_int_perc) * n_samples / 100
 conf_int_indices_to_pick = conf_int_indices_to_pick.astype(dtype=int)
 log_probs = reader.get_log_prob(flat=True, discard=DISCARD, thin=THIN)
 sorted_flatsamples = flat_samples[-log_probs.argsort()] # samples sorted by log_probs
 
 
-h_grid = np.arange(-3, 1, 0.01)
+zeta_grid = np.arange(-3, 1, 0.01)
 # h_2d_grid = np.array([h_grid,]*n_samples)
-sto_array = np.array([Sy(h_grid, s0, s1) for s0, s1, _, _, _ in sorted_flatsamples])
-tra_array = np.array([T(h_grid, t0, t1, t2) for _, _, t0, t1, t2 in sorted_flatsamples])
+sto_array = np.array([Sy(zeta_grid, s1, s2) for s1, s2, _, _ in sorted_flatsamples])
+tra_array = np.array([T(zeta_grid, t1, t2) for _, _, t1, t2  in sorted_flatsamples])
 
 sto_ci = [0] * len(conf_int_perc) # [[Smin_ci1, Smax_ci1], [Smin_ci2, Smax_ci2], ...]
 tra_ci = [0] * len(conf_int_perc)
@@ -211,16 +211,16 @@ for i, ci in enumerate(conf_int_indices_to_pick):
 # Plot all curves with some alpha    
 fig, ax = plt.subplots(nrows=2, ncols=1)
 axS = ax[0]; axT = ax[1]
-axS.set_title('Sy(h)'); axT.set_title('T(h)')
+axS.set_title('Sy(zeta)'); axT.set_title('T(zeta)')
 axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
-axS.set_xlabel('Sy'); axS.set_ylabel('h(m)')
-axT.set_xlabel('T'); axT.set_ylabel('h(m)')
+axS.set_xlabel('Sy'); axS.set_ylabel('zeta(m)')
+axT.set_xlabel('T'); axT.set_ylabel('zeta(m)')
 
 for s, t in zip(sto_array, tra_array):
     # axS.plot(s, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
     # axT.plot(t, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
-    axS.plot(s, h_grid, alpha=1/256, color='black')
-    axT.plot(t, h_grid, alpha=1/256, color='black')
+    axS.plot(s, zeta_grid, alpha=1/256, color='black')
+    axT.plot(t, zeta_grid, alpha=1/256, color='black')
 
 axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
 axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
@@ -230,22 +230,21 @@ fig, ax = plt.subplots(nrows=2, ncols=1)
 # CI
 axS = ax[0]; axT = ax[1]
 axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
-axS.set_xlabel('Sy'); axS.set_ylabel('h(m)')
-axT.set_xlabel('T'); axT.set_ylabel('h(m)')
+axS.set_xlabel('Sy'); axS.set_ylabel('zeta(m)')
+axT.set_xlabel('T'); axT.set_ylabel('zeta(m)')
 
 for i, ci in enumerate(conf_int_perc):
-    axS.fill_betweenx(h_grid, sto_ci[i][1], sto_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
-    axT.fill_betweenx(h_grid, tra_ci[i][1], tra_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+    axS.fill_betweenx(zeta_grid, sto_ci[i][1], sto_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+    axT.fill_betweenx(zeta_grid, tra_ci[i][1], tra_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
 
 # ML
-s0ML = max_likelihood_params[0]
-s1ML = max_likelihood_params[1]
-t0ML = max_likelihood_params[2]
-t1ML = max_likelihood_params[3]
-t2ML = max_likelihood_params[4]
+s1ML = max_likelihood_params[0]
+s2ML = max_likelihood_params[1]
+t1ML = max_likelihood_params[2]
+t2ML = max_likelihood_params[3]
 
-axS.plot(Sy(h_grid, s0ML, s1ML), h_grid, label='ML')
-axT.plot(T(h_grid, t0ML, t1ML, t2ML), h_grid, label='ML')
+axS.plot(Sy(zeta_grid, s1ML, s2ML), zeta_grid, label='ML')
+axT.plot(T(zeta_grid,  t1ML, t2ML), zeta_grid, label='ML')
 
 fig.legend()
 
