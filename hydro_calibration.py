@@ -163,10 +163,10 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         t1 = params[2]; t2 = params[3];
     
         T_prime = np.exp(t1-s1) * np.power(s2/np.exp(s1)* u + np.exp(s2*b), (t2-s2)/s2)
-        S_prime = s2
+        # S_prime = s2
 
         diffusivity_prime = (S(u, params, b) * T_prime - 
-                             T(u, params, b) * S_prime) * np.power(S(u, params, b), -2)        
+                             T(u, params, b) * s2) * np.power(S(u, params, b), -2)        
         
         return diffusivity_prime
     

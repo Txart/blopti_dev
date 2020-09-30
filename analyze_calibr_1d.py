@@ -152,7 +152,7 @@ print(f"flat samples shape: {flat_samples.shape}")
 """
 def corner_plot(samples, savefig=True):
     import corner
-    labels = ['s0', 's1', 't0', 't1', 't2']
+    labels = ['s1', 's2', 't1', 't2']
     fig = corner.corner(samples, labels=labels)
     if savefig:
         fig.savefig("MCMC_corner_result.png")
