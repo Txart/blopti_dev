@@ -101,26 +101,38 @@ fn_weather_data = Path('data/weather_station_historic_data.xlsx')
 dfs_by_transects = get_data.main(fn_weather_data)
 
 # Choose transects
-relevant_transects = ['P021']
+relevant_transects = ['P021', 'P012']
 dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
  
 dfs_sliced_relevant_transects = {}
 # Slice by julian day
-jday_bounds = [660, 673] # 660: 22/10/2019; 830: 9/4/2020
+jday_bounds = {'P021':[660, 673], # 660: 22/10/2019; 830: 9/4/2020
+               'P012':[658, 670]}
+
 for key, df in dfs_relevant_transects.items():
-    sliced_df = df.loc[jday_bounds[0]:jday_bounds[1]]
+    sliced_df = df.loc[jday_bounds[key][0]:jday_bounds[key][1]]
     dfs_sliced_relevant_transects[key] = sliced_df
 
 # TODO: Maybe put all this in an excel    
 # Data invented. Check from raster data
 DEM_RESOLUTION = 100 # m/pixel
-sensor_locations = {'P021':[0, -1]}  # sensor locations wrt position in grid
-transect_pixels = {'P021': 3} # length in pixels
-surface_elev_pixels = {'P021':[2,4,5]} # m above common ref point z=0
-peat_depth = {'P021':-4} # m below lowest peat surface elevation
-mesh_dt = {'P021':0.001} # in days
-# TODO: Make something smart about mesh dimensions
-mesh_nx = {'P021':10}
+sensor_locations = {'P021':[0, -1],
+                    'P012':[0, -1]}  # sensor locations wrt position in grid
+
+transect_pixels = {'P021': 3,
+                   'P012': 4} # length in pixels
+
+surface_elev_pixels = {'P021':[2,4,5],
+                       'P012':[1,1.4,2, 2.2]} # m above common ref point z=0
+
+peat_depth = {'P021':-4,
+              'P012':-2} # m below lowest peat surface elevation
+
+mesh_dt = {'P021':1e-4,
+           'P012':1e-4} # in days
+
+mesh_nx = {'P021':10,
+           'P012': 10}
 
 # put all data into one meta-dictionary ordered by transect
 data_dict = {}
@@ -207,7 +219,6 @@ def log_likelihood(params):
         
         try:
         # CHEBYSHEV
-            dt = 1e-4 # TODO: Change to good stability criterion
             simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
                                                         theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
             # print(simulated_wtd)

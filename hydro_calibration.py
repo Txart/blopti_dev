@@ -199,15 +199,15 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
 
     for day in range(ndays):
         # Update source term 
-        source = (precip[day] - evapotra[day]) / internal_niter
+        source = precip[day] - evapotra[day]
         # Update BC
         v_old[-1] = boundary_values_left[day] # left BC is always Dirichlet
         
         # solve dt forward in time
         for i in range(internal_niter):
             
-            v_new = forward_Euler(v_old, dt, params)
-            # v_new = RK4(v_old, dt, params)
+            # v_new = forward_Euler(v_old, dt, params)
+            v_new = RK4(v_old, dt, params)
 
             # Reset BC
             v_new[-1] = boundary_values_left[day] # Diri
@@ -223,11 +223,9 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
         theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
         b_cheby_sensors = np.array([b_cheby[::-1][sl] for sl in sensor_loc[1:]])
         zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, s1, s2, b_cheby_sensors)
-
+        
         WTD_from_theta_sol.append(zeta_sol_sensors[0])
         
-        print(f" theta = {theta_sol_sensors}")
-        print(f" zeta = {zeta_sol_sensors}")
         
           
     return np.array(WTD_from_theta_sol)

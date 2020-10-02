@@ -35,7 +35,8 @@ rnd_params = np.random.rand(20,5)*2
 # script file
 # Compare fipy, RK4, Euler forward
 start_time = time.time()
-simu_rk4 = []
+# simu_rk4 = []
+simu_eu = []
 for params in rnd_params:
     dt = 1e-3
     simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt,
@@ -93,17 +94,40 @@ simu_fipy = np.array(simu_fipy)
 
 #%%
 # check accuracy
-acc_values = 10
+# Forward Euler
+import hydro_calibration
+
+acc_values = 5
 dts = np.linspace(1e-2, 1e-6, acc_values)
-params = [1.0, 2.1, 2.0, 1.0, 0.3]
+params = [1.0, 1.3, 1.5, 1.4]
 simu_eu_acc = []
 for dt in dts:
     simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt,
                                                          params, ndays, sensor_locations,
-                                                         theta_boundary_values_left,
-                                                         theta_boundary_values_right,
-                                                         precip, evapotra, ele)
+                                                        theta_boundary_values_left,
+                                                        theta_boundary_values_right,
+                                                        precip, evapotra,
+                                                        ele_interp, peat_depth)
     simu_eu_acc.append(simulated_wtd)
+
+#%%
+# check accuracy
+# Runge-Kutta 4th order
+import hydro_calibration
+
+simu_rk_acc = []
+for dt in dts:
+    simulated_wtd = hydro_calibration.hydro_1d_chebyshev(theta_ini, nx-1, dx, dt,
+                                                         params, ndays, sensor_locations,
+                                                        theta_boundary_values_left,
+                                                        theta_boundary_values_right,
+                                                        precip, evapotra,
+                                                        ele_interp, peat_depth)
+    simu_rk_acc.append(simulated_wtd)
+
+
+#%% TODO: CHECK ACCURAY WITH INCREASING SPATIAL RESOLUTION
+    
 #%%
 # plot accuracy    
 plt.figure('accuracy')
@@ -118,7 +142,34 @@ for i,dt in enumerate(dts):
 
 plt.xlabel('ndays')
 plt.ylabel('h')
-plt.title('Runge-Kutta: orange, Fwd. Euler: blue. Light -> Dark: dt=0.01 -> dt=1e-6. params = [1.0, 2.1, 2.0, 1.0, 0.3]')    
+plt.title(f'Runge-Kutta: orange, Fwd. Euler: blue. Light -> Dark: dt=0.01 -> dt=1e-6. params = {params}')    
+    
+    
+    
+#%%
+# Waterfall plot of difference
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_title('precip x10')
+
+x = np.linspace(0,1, nx)
+for j in range(a1_6.shape[0]):
+    ys = j*np.ones(a1_6.shape[1])
+    ax.plot(x, ys, abs(a1_6[j,:]))
+    
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.set_title('precip')
+
+x = np.linspace(0,1, nx)
+for j in range(a10_6.shape[0]):
+    ys = j*np.ones(a10_6.shape[1])
+    ax.plot(x, ys, abs(a10_6[j,:]))
+    
+    
+    
+    
+    
     
     
     
