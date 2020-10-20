@@ -11,32 +11,35 @@ import pandas as pd
 
 #%%
 def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
-             boundary_values_left, boundary_values_right, precip, evapotra, ele):
-    # TODO: implement zeta and new parameterization
-    raise NotImplementedError("Not imiplemented yet!")
+             boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, peat_depth):
+    
+    def zeta_from_theta(x, b):
+        return np.log(np.exp(s2*b) + s2*np.exp(-s1)*x) / s2
     
     mesh = fp.Grid1D(nx=nx, dx=dx)
     
-    s0 = params[0]; s1 = params[1] 
-    t0 = params[2]; t1 = params[3]; t2 = params[4];
+    ele = ele_interp(mesh.cellCenters.value[0])
+    b = peat_depth + ele.min() - ele
     
-    P = precip[0]; ET = evapotra[0]
+    s1 = params[0]; s2 = params[1] 
+    t1 = params[2]; t2 = params[3]
+    
+    source = precip[0] - evapotra[0]
     
     theta = fp.CellVariable(name="theta", mesh=mesh, value=theta_ini, hasOld=True)
     
     # Choice of parameterization
-    # This is the underlying transimissivity: T = t0 * exp(t1 + t2*h)
-    # This is the underlying storage coeff: S = s1 * exp(s0 + s1 * h) # and S_theta = s1 * theta
+    # This is the underlying conductivity: K = exp(t1 + t2*zeta). The 
+    # transmissivity is derived from this and written in terms of theta
+    # This is the underlying storage coeff: S = exp(s1 + s2*zeta)
     # S is hidden in change from theta to h
-    D = t0/s1 * numerix.exp(t1 - t2*s0/s1) * numerix.power(theta, t2/s1 - 1.)
-    
-    if np.isnan(D.value).any():
-        raise ValueError('D is NaN')
+    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta + numerix.exp(s2*b), t2/s2) -
+                                      numerix.exp(t2*b))) * np.power(s2 * (theta + numerix.exp(s1 + s2*b)/s2), -1)
     
     # Boussinesq eq. for theta
-    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=D) + P - ET
+    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=D) + source
     
-    WTD_from_theta_sol = [] # returned quantity
+    theta_sol_list = [] # returned quantity
     
     MAX_SWEEPS = 1000
     
@@ -53,7 +56,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
             theta_right = boundary_values_right[day]
             theta.constrain(theta_right, where=mesh.facesRight)
             
-        P = precip[day]; ET = evapotra[day]   
+        source = precip[day] - evapotra[day]
         
         res = 0.0
         for r in range(MAX_SWEEPS):
@@ -64,11 +67,15 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         # Append to list
         theta_sol = theta.value
         theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the fitness estimation
-        h_sol_sensors = (np.log(theta_sol_sensors) -s0)/s1
-
-        WTD_from_theta_sol.append(h_sol_sensors[0]) 
         
-    return np.array(WTD_from_theta_sol)
+        theta_sol_list.append(theta_sol_sensors[0]) 
+    
+    b_sensors = np.array([b[sl] for sl in sensor_loc[1:]])    
+    zeta_from_theta_sol_sensors = zeta_from_theta(np.array(theta_sol_list), b_sensors)
+        
+    return zeta_from_theta_sol_sensors
+
+
 
 def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, PEAT_DEPTH):
@@ -118,7 +125,8 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
 
     """
     
-    s1 = params[0]; s2 = params[1];
+    s1 = params[0]; s2 = params[1]
+    t1 = params[2]; t2 = params[3]
     
     # Nonlinear heat equation Using Chebyshev:
     #    du/dt = d/dx(A(u)*du/dx) + S is equivalent to solving
@@ -128,7 +136,7 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     
   
     # IC
-    v_old = theta_ini[:]
+    v = theta_ini[:]
     
     if len(theta_ini) != N+1: #chebyshev adds one point to the mesh
         raise ValueError("initial value not same size as discretization")
@@ -143,89 +151,151 @@ def hydro_1d_chebyshev(theta_ini, N, dx, dt, params, ndays, sensor_loc,
     ele_cheby = ele_interp((x+L)[::-1])[::-1]
     b_cheby = PEAT_DEPTH + ele_cheby.min() - ele_cheby
       
-    def S(u, params, b):
-        s1 = params[0]; s2 = params[1];
+    def S(u, b):
         return s2 * (u + np.exp(s1 + s2*b)/s2)
     
-    def T(u, params, b):
-        s1 = params[0]; s2 = params[1];
-        t1 = params[2]; t2 = params[3];
+    def T(u, b):
         return np.exp(t1)/t2 * (np.power(s2 * np.exp(-s1) * u + np.exp(s2*b), t2/s2) - np.exp(t2*b))
     
-    def dif(u, params, b):
+    def dif(u, b):
         # Diffusivity
-        return T(u, params, b) * np.power(S(u, params, b), -1)
+        return T(u, b) * np.power(S(u, b), -1)
     
-    def dif_prime(u, params, b):
+    def dif_prime(u, b):
         # Derivative of diffusivity with respect to theta
         # Have to hardcode the derivative
-        s1 = params[0]; s2 = params[1];
-        t1 = params[2]; t2 = params[3];
-    
         T_prime = np.exp(t1-s1) * np.power(s2/np.exp(s1)* u + np.exp(s2*b), (t2-s2)/s2)
         # S_prime = s2
 
-        diffusivity_prime = (S(u, params, b) * T_prime - 
-                             T(u, params, b) * s2) * np.power(S(u, params, b), -2)        
+        diffusivity_prime = (S(u, b) * T_prime - 
+                             T(u, b) * s2) * np.power(S(u, b), -2)        
         
         return diffusivity_prime
     
-    def zeta_from_theta(x, s1, s2, b):
+    def zeta_from_theta(x, b):
         return np.log(np.exp(s2*b) + s2*np.exp(-s1)*x) / s2
     
    
-    def rhs(u, params):
+    def rhs(u):
         # RHS of the PDE: du/dt = rhs(u)
-        return dif_prime(u, params, b_cheby) * (D @ u)**2 + dif(u, params, b_cheby) * D2 @ u + source
+        return dif_prime(u, b_cheby) * (D @ u)**2 + dif(u, b_cheby) * D2 @ u + source
     
-    def forward_Euler(v_old, dt, params):
-        return v_old + dt*rhs(v_old, params)
+    def forward_Euler(v, dt):
+        return v + dt*rhs(v)
     
-    def RK4(v_old, dt, params):
+    def RK4(v, dt):
         # 4th order Runge-Kutta
                        
         # Diri BC have to be specified every time the rhs is evaluated!
-        k1 = rhs(v_old, params); k1[-1] = 0 # BC
-        k2 = rhs(v_old + dt/2*k1, params); k2[-1] = 0 # BC
-        k3 = rhs(v_old + dt/2*k2, params); k3[-1] = 0 # BC
-        k4 = rhs(v_old + dt*k3, params); k4[-1] = 0 # BC
+        k1 = rhs(v); k1[-1] = 0 # BC
+        k2 = rhs(v + dt/2*k1); k2[-1] = 0 # BC
+        k3 = rhs(v + dt/2*k2); k3[-1] = 0 # BC
+        k4 = rhs(v + dt*k3); k4[-1] = 0 # BC
         
-        return v_old + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
+        return v + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
      
     WTD_from_theta_sol = [] # returned quantity    
     
-    # Solve iteratively
-    internal_niter = int(1/dt)
-
-    for day in range(ndays):
-        # Update source term 
-        source = precip[day] - evapotra[day]
-        # Update BC
-        v_old[-1] = boundary_values_left[day] # left BC is always Dirichlet
-        
-        # solve dt forward in time
-        for i in range(internal_niter):
+    EXPLICIT = False
+    if EXPLICIT:
+        # Solve iteratively
+        internal_niter = int(1/dt)
+    
+        for day in range(ndays):
+            # Update source term 
+            source = precip[day] - evapotra[day]
+            # Update BC
+            v[-1] = boundary_values_left[day] # left BC is always Dirichlet
             
-            # v_new = forward_Euler(v_old, dt, params)
-            v_new = RK4(v_old, dt, params)
-
-            # Reset BC
-            v_new[-1] = boundary_values_left[day] # Diri
-            nbc =  D[0,1:] @ v_new[1:] # No flux Neumann BC
-            flux = 0.
-            v_new[0] = 1/D[0,0] * (flux - nbc)
-        
-            v_old = v_new
+            # solve dt forward in time
+            for i in range(internal_niter):
+                
+                v_new = forward_Euler(v, dt)
+                # v_new = RK4(v, dt, params)
+    
+                # Reset BC
+                v_new[-1] = boundary_values_left[day] # Diri
+                nbc =  D[0,1:] @ v_new[1:] # No flux Neumann BC
+                flux = 0.
+                v_new[0] = 1/D[0,0] * (flux - nbc)
             
-        # Compare with measured and append result
-        theta_sol = v_new[:][::-1] # We've got to reverse because of chebyshev transform!
+                v = v_new
         
-        theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
-        b_cheby_sensors = np.array([b_cheby[::-1][sl] for sl in sensor_loc[1:]])
-        zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, s1, s2, b_cheby_sensors)
+            theta_sol = v_new[:][::-1] # We've got to reverse because of chebyshev transform!
+            
+            # Append result in terms of zeta
+            theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
+            b_cheby_sensors = np.array([b_cheby[::-1][sl] for sl in sensor_loc[1:]])
+            zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, s1, s2, b_cheby_sensors)
         
-        WTD_from_theta_sol.append(zeta_sol_sensors[0])
+            WTD_from_theta_sol.append(zeta_sol_sensors[0])
+    
+    
+    
+    """
+        Implicit solution
+    """
+    def dif_prime_prime(u, b):
+        # S_prime = s2; S_prime_prime = 0., so some terms are directly zero and thus not written
+        T_prime = np.exp(t1-s1) * np.power(s2/np.exp(s1)* u + np.exp(s2*b), (t2-s2)/s2)
+        T_prime_prime = np.exp(t1-2*s1) * (t2 - s2) * np.power(s2/np.exp(s1) * u + np.exp(s2*b), (t2-2*s2)/s2)
         
+        return (1/S(u, b))**3 * (S(u,b)**2 * T_prime_prime - 2* s2 * T_prime * S(u,b) + 2*s2**2 * T(u,b))
+        
+    def F(u, u_0, dt):
+            # u_0 = u in previous timestep
+            # dt: timestep size
+            return dt * rhs(u) + u_0 - u
+        
+    if not EXPLICIT: # Implicit backwards Euler!
+        dt = 1
+        max_internal_niter = 10
+        rel_tolerance = 1e-5
+        abs_tolerance = 1e-5
+        weight = 0.01 # relaxation parameter. weight=1 returns original problem without relaxation.
+        
+        for day in range(ndays):
+            # Update source term 
+            source = precip[day] - evapotra[day]
+            # Update BC
+            v[-1] = boundary_values_left[day] # left BC is always Dirichlet
+            # Compute tolerance. Each day, a new tolerance because source changes
+            rel_tol = rel_tolerance * np.linalg.norm(dt*rhs(theta_ini))              
+            
+            for i in range(0, int(max_internal_niter)):
+                # solve iteratively linear eq of the form A*x+b = 0
+                B = dt*(dif_prime(v, b_cheby) * (D @ v)**2 + dif(v, b_cheby) * D2 @ v) + theta_ini - v
+                A = dt*(2*dif_prime(v, b_cheby) * (D @ v) * D + dif(v, b_cheby) * D2 +
+                        np.eye(N+1) * (dif_prime_prime(v, b_cheby) * (D @ v)**2 +
+                                       dif_prime(v, b_cheby) * D2 @ v))
+                dv = np.linalg.solve(A, B)
+                
+                #update
+                v = v + weight * dv
+                
+                # Set BC
+                v[-1] = boundary_values_left[day] # Diri
+                nbc =  D[0,1:] @ v[1:] # No flux Neumann BC
+                flux = 0.
+                v[0] = 1/D[0,0] * (flux - nbc)
+                
+                # stopping criterion
+                residue = np.linalg.norm(F(v, theta_ini, dt)) - rel_tol
+                print(f'res = {residue}')
+                print(f'v = {v}')
+                if residue < abs_tolerance:
+                    print('residue smaller than tolerance!')
+                    break
+                
+            theta_sol = v[:][::-1] # We've got to reverse because of chebyshev transform!
+            # Append result in terms of zeta
+            theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the error
+            b_cheby_sensors = np.array([b_cheby[::-1][sl] for sl in sensor_loc[1:]])
+            zeta_sol_sensors = zeta_from_theta(theta_sol_sensors, b_cheby_sensors)
+    
+            WTD_from_theta_sol.append(zeta_sol_sensors[0])
+    
+    
         
           
     return np.array(WTD_from_theta_sol)
