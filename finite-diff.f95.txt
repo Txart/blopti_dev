@@ -1,0 +1,105 @@
+subroutine jacobian(v, delta_t, delta_x, N, J)
+! =====================================================
+! Sets up Jacobian matrix for Newton-Rhapson method
+! solution of the Backward Euler implicit finite diff
+! 1D Bousinessq eq.
+! Dirichlet in 0th position, no flux neumann in Nth position
+! =====================================================
+    real, allocatable, intent(in)   :: v(:)
+    real, intent(in)  :: delta_t, delta_x
+    integer, intent(in) :: N
+    real, allocatable, intent(out) :: J(:,:)
+
+    integer :: i, j
+	real :: e
+    
+    ! Allocate dimensions for vects and matrices
+    allocate (v(N+1), J(N+1, N+1)) ! N+1 because 0th node is in
+
+	! notation
+	e = 1/(2*delta_x**2)
+
+    do j=1,N+1
+        do i=2,N
+            J(i,i-1) = e*(-dif_prime(v(i-1))*v(i-1) - dif(v(i]) - dif(v(i-1)) + dif_prime(v(i-1))*v(i))
+			
+			J(i,i) = e*(-dif_prime(v(i))*v(i-1) + 2*dif_prime(v(i))*v(i) - dif_prime(v(i))*v(i+1) + dif(v(i+1)) & 
+                        + 2*dif(v(i)) + dif(v(i-1))) + 1/delta_t
+						
+			J(i,i+1) = e*(dif_prime(v(i+1))*v(i) - dif(v(i+1)) - dif(v(i)) - dif_prime(v(i+1))*v(i+1))
+			
+			
+        end do
+    end do
+	! BC
+    ! Diri in x=0
+    J(1,1) = 1
+    ! Neumann with diffusivity(u(L))*u'(L)=0 in x=N
+    aL = dif(v(N))
+    J(N+1,N+1) = e*(-dif_prime(v(N))*v(N) + 2*dif_prime(v(N+1))*v(N+1) + aL + 2*dif(v(N+1)) + dif(v(N))) + 1/delta_t
+    J(N+1,N) = e*(-dif_prime(v(N))*v(N) + dif_prime(v(N))*v(N+1) - aL - 2*dif(v(N+1)) - dif(v(N))) -delta_x*e*(dif_prime(v(N+1)))
+	
+    return
+end subroutine jacobian
+
+
+function dif(x) result(y)
+	real, intent(in) :: x
+	real :: y
+	
+	y = 1
+	return
+end function
+
+
+subroutine dif_vector(x, x_length, dif)
+!===============================================
+! Take in a vector of volumetric water contents,
+! return the difussivity for each component
+!===============================================
+real, allocatable, intent(in) :: x(:) ! volumetric water content, theta
+integer, intent(in) :: x_length
+real, allocatable, intent(out) :: dif(:)
+
+integer :: i
+
+allocate(x(x_length), dif(x_length))
+
+do i=1,x_length
+    dif(i) = dif(x(i))
+end do
+
+return
+end subroutine
+
+function dif_prime(x) result(y)
+	real, intent(in) :: x
+	real :: y
+	
+	y = 0.
+	return
+end function
+
+
+subroutine dif_prime_vector(x, x_length, dif)
+!===============================================
+! Take in a vector of volumetric water contents,
+! return the difussivity for each component
+!===============================================
+real, allocatable, intent(in) :: x(:) ! volumetric water content, theta
+integer, intent(in) :: x_length
+real, allocatable, intent(out) :: dif(:)
+
+integer :: i
+
+allocate(x(x_length), dif(x_length))
+
+do i=1,x_length
+    dif(i) = dif_prime(x(i))
+end do
+return
+end subroutine
+
+program main
+
+end program
