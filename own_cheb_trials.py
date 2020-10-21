@@ -17,6 +17,9 @@ import math
 import time
 
 #%%
+plotOpt = False
+
+#%%
 def cheb(N):
     '''Chebyshev polynomial differentiation matrix.
        Ref.: https://github.com/nikola-m/another-chebpy/blob/master/chebPy.py
@@ -120,17 +123,18 @@ for i in range(niter):
 
 print(f"Cheb time(s) = {time.time() - c_start_time}")  
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Chebyshev')
-
-v_plot = np.array(v_plot)
-v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
-
-for j in range(v_plot.shape[0]):
-    ys = j*np.ones(v_plot.shape[1])
-    ax.plot(x,ys,v_plot[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Chebyshev')
+    
+    v_plot = np.array(v_plot)
+    v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
   
 #%%
@@ -201,44 +205,46 @@ for i in range(TIMESTEPS):
 
 print(f"FiPy time(s) = {time.time() - f_start_time}")  
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title(f'FiPy, dx={dx}, N={N}')
-
-plot_sol_fp = np.array(sol_fp)
-# plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
-x_fp = np.linspace(0, 2, num=N)
-
-for j in range(plot_sol_fp.shape[0]):
-    ys = j*np.ones(plot_sol_fp.shape[1])
-    ax.plot(x_fp, ys, plot_sol_fp[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title(f'FiPy, dx={dx}, N={N}')
+    
+    plot_sol_fp = np.array(sol_fp)
+    # plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+    x_fp = np.linspace(0, 2, num=N)
+    
+    for j in range(plot_sol_fp.shape[0]):
+        ys = j*np.ones(plot_sol_fp.shape[1])
+        ax.plot(x_fp, ys, plot_sol_fp[j,:])
 
     
 #%%
 # Compare fipy vs cheby 
 
-# In order to compare, interpolate the chebyshev and evaluate
-# at fipy mesh centers: x = (0.5, 1.5 , ...)
-import scipy.interpolate.interpolate as interp
-
-cheby_interp = interp.interp1d(x + 1, v_old) # The +1 is to begin at x=0
-x_fp = mesh.cellCenters.value[0]
-cheby_interpolated = cheby_interp(x_fp[0:N-1])
-
-# Plot together
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.plot(x_fp, plot_sol_fp[-1], label='fipy')
-ax.plot(x+1, v_old, label='chebyshev')
-plt.legend()
-
-# Plot of difference
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.set_title('abs(FiPy-cheby)')
-
-ax.plot(x_fp[0:N-1], abs(plot_sol_fp[-1][0:N-1] - cheby_interpolated))
+if plotOpt:
+    # In order to compare, interpolate the chebyshev and evaluate
+    # at fipy mesh centers: x = (0.5, 1.5 , ...)
+    import scipy.interpolate.interpolate as interp
+    
+    cheby_interp = interp.interp1d(x + 1, v_old) # The +1 is to begin at x=0
+    x_fp = mesh.cellCenters.value[0]
+    cheby_interpolated = cheby_interp(x_fp[0:N-1])
+    
+    # Plot together
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x_fp, plot_sol_fp[-1], label='fipy')
+    ax.plot(x+1, v_old, label='chebyshev')
+    plt.legend()
+    
+    # Plot of difference
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title('abs(FiPy-cheby)')
+    
+    ax.plot(x_fp[0:N-1], abs(plot_sol_fp[-1][0:N-1] - cheby_interpolated))
     
     
 #%%
@@ -286,17 +292,18 @@ for i in range(niter):
 
 print(f"Cheb Simple time(s) = {time.time() - c_start_time}")  
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Chebyshev New')
-
-v_plot = np.array(v_plot)
-v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
-
-for j in range(v_plot.shape[0]):
-    ys = j*np.ones(v_plot.shape[1])
-    ax.plot(x,ys,v_plot[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Chebyshev New')
+    
+    v_plot = np.array(v_plot)
+    v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
 
 
@@ -349,17 +356,18 @@ for t in range(TIMESTEPS):
 
 print(f"Cheb implicit time(s) = {time.time() - c_start_time}")  
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Chebyshev implicit')
-
-v_plot = np.array(v_plot)
-
-
-for j in range(v_plot.shape[0]):
-    ys = j*np.ones(v_plot.shape[1])
-    ax.plot(x,ys,v_plot[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Chebyshev implicit')
+    
+    v_plot = np.array(v_plot)
+    
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
 #%%
 # Cheby simplewith implicit backward Euler Neton-Rhapson method
@@ -400,17 +408,18 @@ for t in range(TIMESTEPS):
 
 print(f"Cheb implicit time(s) = {time.time() - c_start_time}")  
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Chebyshev simple implicit')
-
-v_plot = np.array(v_plot)
-
-
-for j in range(v_plot.shape[0]):
-    ys = j*np.ones(v_plot.shape[1])
-    ax.plot(x,ys,v_plot[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Chebyshev simple implicit')
+    
+    v_plot = np.array(v_plot)
+    
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
 
 #%%
@@ -693,42 +702,43 @@ for t in range(TIMESTEPS):
 
 print(f"Finite diff implicit time(s) = {time.time() - c_start_time}") 
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Finite diff implicit')
-
-v_plot = np.array(v_plot)
-x = np.linspace(0,dx*N, N+1)
-
-for j in range(v_plot.shape[0]):
-    ys = j*np.ones(v_plot.shape[1])
-    ax.plot(x,ys,v_plot[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Finite diff implicit')
+    
+    v_plot = np.array(v_plot)
+    x = np.linspace(0,dx*N, N+1)
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
 #%%
 # Compare fipy vs finite diff implicit 
-
-# In order to compare, interpolate the finite diff and evaluate
-# at fipy mesh centers: x = (0.5, 1.5 , ...)
-import scipy.interpolate.interpolate as interp
-
-fdiff_interp = interp.interp1d(x, v_old)
-x_fp = mesh.cellCenters.value[0][0:-1]
-fdiff_interpolated = fdiff_interp(x_fp)
-
-# Plot together
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
-ax.plot(x, v_old, label='finite diff implicit')
-plt.legend()
-
-# Plot of difference
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.set_title('abs(FiPy-finite diff implicit)')
-
-ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
+if plotOpt:
+    # In order to compare, interpolate the finite diff and evaluate
+    # at fipy mesh centers: x = (0.5, 1.5 , ...)
+    import scipy.interpolate.interpolate as interp
+    
+    fdiff_interp = interp.interp1d(x, v_old)
+    x_fp = mesh.cellCenters.value[0][0:-1]
+    fdiff_interpolated = fdiff_interp(x_fp)
+    
+    # Plot together
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
+    ax.plot(x, v_old, label='finite diff implicit')
+    plt.legend()
+    
+    # Plot of difference
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title('abs(FiPy-finite diff implicit)')
+    
+    ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
 
 
 #%% FORTRAN BUSINESS
@@ -810,39 +820,40 @@ for t in range(TIMESTEPS):
 
 print(f"Finite diff with fortran-constructed J and F (s) = {time.time() - c_start_time}") 
 
-# Waterfall plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_title('Finite diff Fortran')
-
-v_plot = np.array(v_plot)
-x = np.linspace(0,dx*N, N+1)
-
-for j in range(v_plot.shape[0]):
-    ys = j*np.ones(v_plot.shape[1])
-    ax.plot(x,ys,v_plot[j,:])
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Finite diff Fortran')
+    
+    v_plot = np.array(v_plot)
+    x = np.linspace(0,dx*N, N+1)
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
 #%%
 # Compare fipy vs finite diff implicit  
-
-# In order to compare, interpolate the finite diff and evaluate
-# at fipy mesh centers: x = (0.5, 1.5 , ...)
-import scipy.interpolate.interpolate as interp
-
-fdiff_interp = interp.interp1d(x, v_old)
-x_fp = mesh.cellCenters.value[0][0:-1]
-fdiff_interpolated = fdiff_interp(x_fp)
-
-# Plot together
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
-ax.plot(x, v_old, label='finite diff Fortran')
-plt.legend()
-
-# Plot of difference
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.set_title('abs(FiPy-finite diff implicit)')
-
-ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
+if plotOpt:
+    # In order to compare, interpolate the finite diff and evaluate
+    # at fipy mesh centers: x = (0.5, 1.5 , ...)
+    import scipy.interpolate.interpolate as interp
+    
+    fdiff_interp = interp.interp1d(x, v_old)
+    x_fp = mesh.cellCenters.value[0][0:-1]
+    fdiff_interpolated = fdiff_interp(x_fp)
+    
+    # Plot together
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
+    ax.plot(x, v_old, label='finite diff Fortran')
+    plt.legend()
+    
+    # Plot of difference
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title('abs(FiPy-finite diff implicit)')
+    
+    ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
