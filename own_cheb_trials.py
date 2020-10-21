@@ -142,7 +142,7 @@ import copy
 
 N = 10 # cheby starts at pos=0
 
-dx = 2/(N-1)
+dx = 2/N
 
 f_start_time = time.time()
 
@@ -742,7 +742,7 @@ c_start_time = time.time()
 rel_tolerance = 1e-9
 abs_tolerance = 1e-9
 
-N = 3
+N = 10
 dt = 1.0 # in days
 dx = 0.2 # in m 
 v_ini = np.ones(shape=N+1)*INI_VALUE
@@ -784,8 +784,9 @@ for t in range(TIMESTEPS):
     # No-flux in the right all the time
     
     # Compute tolerance. Each day, a new tolerance because source changes
-    _, F
-    rel_tol = rel_tolerance * np.linalg.norm(F_newton(v, SOURCE, dt, v_old, DIRI))
+    _, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
+ 
+    rel_tol = rel_tolerance * np.linalg.norm(F)
 
     for i in range(0, MAX_INTERNAL_NITER):
         J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
@@ -822,7 +823,7 @@ for j in range(v_plot.shape[0]):
     ax.plot(x,ys,v_plot[j,:])
 
 #%%
-# Compare fipy vs finite diff implicit 
+# Compare fipy vs finite diff implicit  
 
 # In order to compare, interpolate the finite diff and evaluate
 # at fipy mesh centers: x = (0.5, 1.5 , ...)
