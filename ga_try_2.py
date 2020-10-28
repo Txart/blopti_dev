@@ -6,22 +6,23 @@ Created on Wed Nov 28 16:06:25 2018
 """
 
 import numpy as np
+import pandas as pd
 import random
 import multiprocessing
 import time
 from deap import creator, base, tools, algorithms
-import preprocess_data, utilities, hydro, hydro_utils
 import argparse
 import os
+from pathlib import Path
 
-
+import preprocess_data, utilities, hydro_standard, hydro_utils
 
 """
 Parse command-line arguments
 """
 parser = argparse.ArgumentParser(description='Run GA.')
 
-parser.add_argument('-d','--days', default=3, help='(int) Number of outermost iterations of the fipy solver, be it steadystate or transient. Default=10.', type=int)
+parser.add_argument('-d','--days', default=2, help='(int) Number of outermost iterations of the fipy solver, be it steadystate or transient. Default=10.', type=int)
 parser.add_argument('-b','--nblocks', default=5, help='(int) Number of blocks to locate. Default=5.', type=int)
 parser.add_argument('-n','--nopti', default=1, help='(int) Number of iterations of the optimization algorithm. Number of generations in GA. Default=100.', type=int)
 parser.add_argument('-p', '--processes', default=1, help='(int) Number of parallel processes for the optimization', type=int)
@@ -34,34 +35,39 @@ N_PROCESSES = args.processes
 
 
 """
-###########################
+#########################
 Read and preprocess data
-###########################
+#########################
 """
-preprocessed_datafolder = r"data/Strat4"
-dem_rst_fn = preprocessed_datafolder + r"/DTM_metres_clip.tif"
-can_rst_fn = preprocessed_datafolder + r"/canals_clip.tif"
-#land_use_rst_fn = preprocessed_datafolder + r"/Landcover2017_clip.tif" # Not used
-peat_depth_rst_fn = preprocessed_datafolder + r"/Peattypedepth_clip.tif" # peat depth, peat type in the same raster
+filenames_df = pd.read_excel('file_pointers.xlsx', header=2, dtype=str)
 
-abs_path_data = os.path.abspath('./data') # Absolute path to data folder needed for Excel file with parameters
-params_fn = abs_path_data + r"/params.xlsx"
-
+dem_rst_fn = Path(filenames_df[filenames_df.Content == 'DEM'].Path.values[0])
+can_rst_fn = Path(filenames_df[filenames_df.Content == 'canal_raster'].Path.values[0])
+peat_depth_rst_fn = Path(filenames_df[filenames_df.Content == 'peat_depth_raster'].Path.values[0])
+params_fn = Path(filenames_df[filenames_df.Content == 'parameters'].Path.values[0])
+WTD_folder = Path(filenames_df[filenames_df.Content == 'WTD_input_and_output_folder'].Path.values[0])
+weather_fn = Path(filenames_df[filenames_df.Content == 'historic_precipitation'].Path.values[0])
+# Choose smaller study area
+STUDY_AREA = (0,-1), (0,-1)
 
 if 'CNM' and 'cr' and 'c_to_r_list' not in globals():
-    CNM, cr, c_to_r_list = preprocess_data.gen_can_matrix_and_raster_from_raster(can_rst_fn=can_rst_fn, dem_rst_fn=dem_rst_fn)
+    CNM, cr, c_to_r_list = preprocess_data.gen_can_matrix_and_raster_from_raster(STUDY_AREA, can_rst_fn=can_rst_fn, dem_rst_fn=dem_rst_fn)
 
 
 else:
     print("Canal adjacency matrix and raster loaded from memory.")
-    
-_ , dem, peat_type_arr, peat_depth_arr = preprocess_data.read_preprocess_rasters(can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn)
+
+wtd_old_fn = dem_rst_fn # not reading from previous wtd raster
+_, wtd_old , dem, peat_type_arr, peat_depth_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn)
 
 PARAMS_df = preprocess_data.read_params(params_fn)
 BLOCK_HEIGHT = PARAMS_df.block_height[0]; CANAL_WATER_LEVEL = PARAMS_df.canal_water_level[0]
 DIRI_BC = PARAMS_df.diri_bc[0]; HINI = PARAMS_df.hini[0]; P = PARAMS_df.P[0]
 ET = PARAMS_df.ET[0]; TIMESTEP = PARAMS_df.timeStep[0]; KADJUST = PARAMS_df.Kadjust[0]
 
+# Precipitation and ET should be a list
+P = [P] * DAYS
+ET = [ET] * DAYS
 
 """
 ##################################
@@ -140,10 +146,11 @@ def evalDryPeatVol(individual): # this should be returning dry peat volume in a 
         wt_canal_arr[coords] = wt_canals[canaln]
 #        phi_ini[coords] = wt_canals[canaln]
         
-    avg_wt = hydro.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
+    avg_wt = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
                                                       peat_type_mask=peat_type_masked, httd=h_to_tra_and_C_dict, tra_to_cut=tra_to_cut, sto_to_cut=sto_to_cut,
                                                       diri_bc=DIRI_BC, neumann_bc = None, plotOpt=False, remove_ponding_water=True,
                                                       P=P, ET=ET, dt=TIMESTEP)
+    
 
     print(avg_wt)
     return avg_wt,
@@ -179,8 +186,11 @@ if __name__ == "__main__":
     
 
 #    print("Best individual of current population is %s, %s" % (best_ind, best_ind.fitness.values))
-#    print("Best individual ever is %s, %s" % (hof[0],hof[0].fitness.values))
-    if N_GENERATIONS > 20:
-        with open(r'output/results_ga_3.txt', 'a') as output_file:
+
+    if N_GENERATIONS > 1:
+        fn = r'output/results_ga_3.txt'
+        with open(fn, 'a') as output_file:
+            print('Created file with best position of blocks at: ' + fn)
             output_file.write("\n" + str(best_ind.fitness.values[0]) + "    " + str(N_BLOCKS) + "    " + str(N_GENERATIONS) + "    " + str(DAYS) + "    " + str(time.ctime()) + "    " + str(hof[0]))
 
+    print("Best individual ever is %s, with a sum(WTD) of  %s" % (hof[0],hof[0].fitness.values[0]))

@@ -337,4 +337,4 @@ def hydrology(solve_mode, nx, ny, dx, dy, days, ele, phi_initial, catchment_mask
 
     phi.updateOld()
 
-    return wtd
+    return np.sum(wtd)

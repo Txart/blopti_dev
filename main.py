@@ -54,7 +54,7 @@ weather_fn = Path(filenames_df[filenames_df.Content == 'historic_precipitation']
 STUDY_AREA = (0,-1), (0,-1)
 
 
-STUDY_AREA = (0,-1), (0,-1)
+
 if 'CNM' and 'cr' and 'c_to_r_list' not in globals():
     CNM, cr, c_to_r_list = preprocess_data.gen_can_matrix_and_raster_from_raster(sa=STUDY_AREA, can_rst_fn=can_rst_fn, dem_rst_fn=dem_rst_fn)
 

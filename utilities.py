@@ -191,3 +191,49 @@ def place_dams(originalWT, srfc, block_height, dams_to_add, CNM):
     return wt
 
 
+def from_raster_pos_to_LatLong(positions_in_canal_network, c_to_r_list, can_network_raster_fn):
+    
+    import rasterio
+    rows = [c_to_r_list[pos][0] for pos in positions_in_canal_network]
+    cols = [c_to_r_list[pos][1] for pos in positions_in_canal_network]
+    src = rasterio.open(can_network_raster_fn) # read metadata from input raster to copy it and have the same projection etc
+    
+    lats, longs = rasterio.transform.xy(transform=src.profile['transform'], rows=rows, cols=cols)
+    
+    latlongs = [(lats[i], longs[i]) for i in range(0, len(lats))]
+    
+    return latlongs
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
