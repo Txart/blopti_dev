@@ -17,14 +17,15 @@ from pathlib import Path
 
 import preprocess_data, utilities, hydro_standard, hydro_utils
 
+#%%
 """
 Parse command-line arguments
 """
 parser = argparse.ArgumentParser(description='Run GA.')
 
-parser.add_argument('-d','--days', default=2, help='(int) Number of outermost iterations of the fipy solver, be it steadystate or transient. Default=10.', type=int)
-parser.add_argument('-b','--nblocks', default=5, help='(int) Number of blocks to locate. Default=5.', type=int)
-parser.add_argument('-n','--nopti', default=1, help='(int) Number of iterations of the optimization algorithm. Number of generations in GA. Default=100.', type=int)
+parser.add_argument('-d','--days', default=2, help='(int) Number of outermost iterations of the fipy solver, be it steadystate or transient. ', type=int)
+parser.add_argument('-b','--nblocks', default=5, help='(int) Number of blocks to locate.', type=int)
+parser.add_argument('-n','--nopti', default=1, help='(int) Number of iterations of the optimization algorithm. Number of generations in GA.', type=int)
 parser.add_argument('-p', '--processes', default=1, help='(int) Number of parallel processes for the optimization', type=int)
 args = parser.parse_args()
 
@@ -192,5 +193,6 @@ if __name__ == "__main__":
         with open(fn, 'a') as output_file:
             print('Created file with best position of blocks at: ' + fn)
             output_file.write("\n" + str(best_ind.fitness.values[0]) + "    " + str(N_BLOCKS) + "    " + str(N_GENERATIONS) + "    " + str(DAYS) + "    " + str(time.ctime()) + "    " + str(hof[0]))
-
+            output_file.write("\n espg:32748 coords of best block positions:" + str(utilities.from_raster_pos_to_LatLong(positions_in_canal_network=hof[0], c_to_r_list=c_to_r_list, can_network_raster_fn=can_rst_fn)))
+            
     print("Best individual ever is %s, with a sum(WTD) of  %s" % (hof[0],hof[0].fitness.values[0]))
