@@ -5,11 +5,6 @@ Created on Fri Sep  4 08:50:51 2020
 @author: 03125327
 """
 
-import os
-# os.environ['FIPY_INLINE'] = 'True' # causes many mathematical operations to be performed in C, rather than Python
-# os.environ['FIPY_INLINE_COMMENT'] = 'True'
-# os.environ['FIPY_SOLVERS'] = 'pysparse'
-
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.linalg import solve, lu_factor, lu_solve, solve_banded
