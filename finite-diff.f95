@@ -13,11 +13,12 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 	
 	integer :: i, info, ipiv(N+1)
 	real :: residue, normF
-	real :: d(N+1), dl(N), du(N), du2(N-1)=0.0, eps_x(N+1), efe(N+1)
+	real :: d(N+1), dl(N), du(N), du2(N-1), eps_x(N+1), efe(N+1)
 	
+	du2 = 0.0
 
 	do i=1,max_internal_niter
-		call j_diag_parts_and_f(N, v, v_old, diri_bc, source, dx, dt, jd, jsuperd, jsubd, efe)
+		call j_diag_parts_and_f(N, v, v_old, diri_bc, source, dx, dt, d, du, dl, efe)
 		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
 		! if (info<0) then
 			! print *, "some parameter  in the matrix has an illegal value"
@@ -33,6 +34,7 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 			print *, 'Solution of the Newton linear system in {i} iterations'
 			exit
 		end if
+	end do
 
     return
 end subroutine finite_diff
@@ -47,7 +49,7 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 !========================================
     integer, intent(in) :: N
     real, intent(in) :: delta_t, delta_x
-    real, intent(in) :: v(N+1)
+    real, intent(in) :: v(N+1), v_old(N+1)
     real, intent(out) :: jdi(N+1), jsuperdi(N), jsubdi(N), F(N+1)
 
 	integer :: i
@@ -67,7 +69,7 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 	end do
 
 	! diri BC in x=0
-	jdi(1,1) =1
+	jdi(1) =1
 	F(1) = diri_bc
 	!Neuman BC
 	jdi(N+1) = e*(-dif_prime(v(N))*v(N) + 2*dif_prime(v(N+1))*v(N+1) + dif(v(N)) + 2*dif(v(N+1)) + dif(v(N))) + 1/delta_t
@@ -78,7 +80,7 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 
 	return
 
-end subroutine j_diag
+end subroutine j_diag_parts_and_f
 
 ! subroutine only_f(N, v, v_old, delta_t, delta_x, diri_bc, source, F): ! NOT IN USE RIGHT NOW
 ! !==============================================================
