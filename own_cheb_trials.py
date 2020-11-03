@@ -891,7 +891,6 @@ a = dif_simple
 a_u = dif_u_simple
 e = 1/(2*dx**2)
 
-J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=SOURCE)
 
 # Plotting stuff
 v_plot = [0]*(TIMESTEPS+1)
@@ -909,12 +908,11 @@ for t in range(TIMESTEPS):
     # No-flux in the right all the time
     
     # Compute tolerance. Each day, a new tolerance because source changes
-    _, F = fd.j_diag_parts_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
- 
+    _, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE) 
     rel_tol = rel_tolerance * np.linalg.norm(F)
 
     # call to fortran function using lapack and everything.
-    v = fd.finite_diff(v=v, v_old=v_old, N=N, dt=dt, dx=dx, source=source,
+    v = fd.finite_diff(v=v, v_old=v_old, n=N, dt=dt, dx=dx, source=source,
                        diri_bc=DIRI, rel_tol=rel_tol, abs_tolerance=abs_tolerance,
                        weight=weight, max_internal_niter=MAX_INTERNAL_NITER)
     
