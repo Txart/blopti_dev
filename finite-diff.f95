@@ -32,6 +32,7 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
         if (residue < abs_tolerance) then
 			print *, 'Solution of the Newton linear system in {i} iterations'
 			exit
+		end if
 
     return
 end subroutine finite_diff
@@ -70,7 +71,8 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 	F(1) = diri_bc
 	!Neuman BC
 	jdi(N+1) = e*(-dif_prime(v(N))*v(N) + 2*dif_prime(v(N+1))*v(N+1) + dif(v(N)) + 2*dif(v(N+1)) + dif(v(N))) + 1/delta_t
-	jsubdi(N) = e*(-dif_prime(v(N))*v(N) + dif_prime(v(N))*v(N+1) - dif(v(N)) - 2*dif(v(N+1)) - dif(v(N))) -delta_x*e*(dif_prime(v(N+1)))
+	jsubdi(N) = e*(-dif_prime(v(N))*v(N) + dif_prime(v(N))*v(N+1) - dif(v(N)) - 2*dif(v(N+1)) - dif(v(N))) &
+					-delta_x*e*(dif_prime(v(N+1)))
 	F(N+1) = -e*((dif(v(N+1)) + dif(v(N)))*v(N) -v(N+1)*(dif(v(N)) + 2*dif(v(N+1)) + dif(v(N))) &
                       + v(N)*(dif(v(N)) + dif(v(N+1)))) - source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
