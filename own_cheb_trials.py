@@ -737,118 +737,228 @@ if plotOpt:
 
 
 #%% FORTRAN BUSINESS
-# import fd # own fortran functions
+import fd # own fortran functions
 
-# # TODO: USE np.asfortranarray()  before calling to fortran FUNCTIONS IN THE FUTURE
+# TODO: USE np.asfortranarray()  before calling to fortran FUNCTIONS IN THE FUTURE
 
-# c_start_time = time.time()
-
-
-# rel_tolerance = 1e-9
-# abs_tolerance = 1e-9
-
-# N = 10
-# dt = 1.0 # in days
-# dx = 0.2 # in m 
-# v_ini = np.ones(shape=N+1)*INI_VALUE
-
-# # BC
-# DIRI = 0.
-# C = 0. # Neumann BC u'(x=N) = C/diffusivity'(u(x=N)). C=0. corresponds to no-flux
-# v_ini[0] = DIRI
-
-# v = v_ini[:]
-# v_old = v_ini[:] # in the previous timestep
+c_start_time = time.time()
 
 
+rel_tolerance = 1e-9
+abs_tolerance = 1e-9
+
+N = 10
+dt = 1.0 # in days
+dx = 0.2 # in m 
+v_ini = np.ones(shape=N+1)*INI_VALUE
+
+# BC
+DIRI = 0.
+C = 0. # Neumann BC u'(x=N) = C/diffusivity'(u(x=N)). C=0. corresponds to no-flux
+v_ini[0] = DIRI
+
+v = v_ini[:]
+v_old = v_ini[:] # in the previous timestep
 
 
-# # Relaxation parameter
-# weight = 0.1
-
-# # Notation
-# a = dif_simple
-# a_u = dif_u_simple
-# e = 1/(2*dx**2)
-
-# J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=SOURCE)
-
-# # Plotting stuff
-# v_plot = [0]*(TIMESTEPS+1)
-# v_plot[0] = v_ini[:]
 
 
-# MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+# Relaxation parameter
+weight = 0.1
 
-# for t in range(TIMESTEPS):
-#     # Update source
-#     source = SOURCE
+# Notation
+a = dif_simple
+a_u = dif_u_simple
+e = 1/(2*dx**2)
+
+J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=SOURCE)
+
+# Plotting stuff
+v_plot = [0]*(TIMESTEPS+1)
+v_plot[0] = v_ini[:]
+
+
+MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+
+for t in range(TIMESTEPS):
+    # Update source
+    source = SOURCE
     
-#     # Update BC
-#     DIRI = DIRI
-#     # No-flux in the right all the time
+    # Update BC
+    DIRI = DIRI
+    # No-flux in the right all the time
     
-#     # Compute tolerance. Each day, a new tolerance because source changes
-#     _, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
+    # Compute tolerance. Each day, a new tolerance because source changes
+    _, F = fd.j_diag_parts_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
  
-#     rel_tol = rel_tolerance * np.linalg.norm(F)
+    rel_tol = rel_tolerance * np.linalg.norm(F)
 
-#     for i in range(0, MAX_INTERNAL_NITER):
-#         J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
+    for i in range(0, MAX_INTERNAL_NITER):
+        J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
         
-#         eps_x = np.linalg.solve(J,-F)
-#         # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
-#         # eps_x = lu_solve(lu_factor(J), -F)
-#         # eps_x = solve(J, -F)
-#         v = v + weight*eps_x
+        eps_x = np.linalg.solve(J,-F)
+        # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
+        # eps_x = lu_solve(lu_factor(J), -F)
+        # eps_x = solve(J, -F)
+        v = v + weight*eps_x
 
-#         # stopping criterion
-#         residue = np.linalg.norm(F) - rel_tolerance
-#         if residue < abs_tolerance:
-#             print(f'Solution of the Newton linear system in {i} iterations')
-#             break
+        # stopping criterion
+        residue = np.linalg.norm(F) - rel_tol
+        if residue < abs_tolerance:
+            print(f'Solution of the Newton linear system in {i} iterations')
+            break
     
-#     v_old = v[:]
-#     v_plot[t+1] = v[:]
+    v_old = v[:]
+    v_plot[t+1] = v[:]
     
     
 
-# print(f"Finite diff with fortran-constructed J and F (s) = {time.time() - c_start_time}") 
+print(f"Finite diff with fortran-constructed J and F (s) = {time.time() - c_start_time}") 
 
-# if plotOpt:
-#     # Waterfall plot
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111, projection='3d')
-#     ax.set_title('Finite diff Fortran')
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Finite diff Fortran')
     
-#     v_plot = np.array(v_plot)
-#     x = np.linspace(0,dx*N, N+1)
+    v_plot = np.array(v_plot)
+    x = np.linspace(0,dx*N, N+1)
     
-#     for j in range(v_plot.shape[0]):
-#         ys = j*np.ones(v_plot.shape[1])
-#         ax.plot(x,ys,v_plot[j,:])
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
 
-# #%%
-# # Compare fipy vs finite diff implicit  
-# if plotOpt:
-#     # In order to compare, interpolate the finite diff and evaluate
-#     # at fipy mesh centers: x = (0.5, 1.5 , ...)
-#     import scipy.interpolate.interpolate as interp
+#%%
+# Compare fipy vs finite diff implicit  
+if plotOpt:
+    # In order to compare, interpolate the finite diff and evaluate
+    # at fipy mesh centers: x = (0.5, 1.5 , ...)
+    import scipy.interpolate.interpolate as interp
     
-#     fdiff_interp = interp.interp1d(x, v_old)
-#     x_fp = mesh.cellCenters.value[0][0:-1]
-#     fdiff_interpolated = fdiff_interp(x_fp)
+    fdiff_interp = interp.interp1d(x, v_old)
+    x_fp = mesh.cellCenters.value[0][0:-1]
+    fdiff_interpolated = fdiff_interp(x_fp)
     
-#     # Plot together
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111)
-#     ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
-#     ax.plot(x, v_old, label='finite diff Fortran')
-#     plt.legend()
+    # Plot together
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
+    ax.plot(x, v_old, label='finite diff Fortran')
+    plt.legend()
     
-#     # Plot of difference
-#     fig = plt.figure()
-#     ax = fig.add_subplot(111)
-#     ax.set_title('abs(FiPy-finite diff implicit)')
+    # Plot of difference
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title('abs(FiPy-finite diff implicit)')
     
-#     ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
+    ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
+    
+    
+    
+    
+#%% FORTRAN BUSINESS ALL IN
+import fd # own fortran functions
+
+# TODO: USE np.asfortranarray()  before calling to fortran FUNCTIONS IN THE FUTURE
+
+c_start_time = time.time()
+
+
+rel_tolerance = 1e-9
+abs_tolerance = 1e-9
+
+N = 10
+dt = 1.0 # in days
+dx = 0.2 # in m 
+v_ini = np.ones(shape=N+1)*INI_VALUE
+
+# BC
+DIRI = 0.
+C = 0. # Neumann BC u'(x=N) = C/diffusivity'(u(x=N)). C=0. corresponds to no-flux
+v_ini[0] = DIRI
+
+v = v_ini[:]
+v_old = v_ini[:] # in the previous timestep
+
+
+
+
+# Relaxation parameter
+weight = 0.1
+
+# Notation
+a = dif_simple
+a_u = dif_u_simple
+e = 1/(2*dx**2)
+
+J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=SOURCE)
+
+# Plotting stuff
+v_plot = [0]*(TIMESTEPS+1)
+v_plot[0] = v_ini[:]
+
+
+MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+
+for t in range(TIMESTEPS):
+    # Update source
+    source = SOURCE
+    
+    # Update BC
+    DIRI = DIRI
+    # No-flux in the right all the time
+    
+    # Compute tolerance. Each day, a new tolerance because source changes
+    _, F = fd.j_diag_parts_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
+ 
+    rel_tol = rel_tolerance * np.linalg.norm(F)
+
+    # call to fortran function using lapack and everything.
+    v = fd.finite_diff(v=v, v_old=v_old, N=N, dt=dt, dx=dx, source=source,
+                       diri_bc=DIRI, rel_tol=rel_tol, abs_tolerance=abs_tolerance,
+                       weight=weight, max_internal_niter=MAX_INTERNAL_NITER)
+    
+    v_old = v[:]
+    v_plot[t+1] = v[:]
+    
+    
+
+print(f"Finite diff with fortran-constructed J and F (s) = {time.time() - c_start_time}") 
+
+if plotOpt:
+    # Waterfall plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.set_title('Finite diff Fortran')
+    
+    v_plot = np.array(v_plot)
+    x = np.linspace(0,dx*N, N+1)
+    
+    for j in range(v_plot.shape[0]):
+        ys = j*np.ones(v_plot.shape[1])
+        ax.plot(x,ys,v_plot[j,:])
+
+#%%
+# Compare fipy vs finite diff implicit  
+if plotOpt:
+    # In order to compare, interpolate the finite diff and evaluate
+    # at fipy mesh centers: x = (0.5, 1.5 , ...)
+    import scipy.interpolate.interpolate as interp
+    
+    fdiff_interp = interp.interp1d(x, v_old)
+    x_fp = mesh.cellCenters.value[0][0:-1]
+    fdiff_interpolated = fdiff_interp(x_fp)
+    
+    # Plot together
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
+    ax.plot(x, v_old, label='finite diff Fortran')
+    plt.legend()
+    
+    # Plot of difference
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    ax.set_title('abs(FiPy-finite diff implicit)')
+    
+    ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
