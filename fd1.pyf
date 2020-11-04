@@ -1,0 +1,24 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module fd ! in 
+    interface  ! in :fd
+        subroutine finite_diff(v,v_old,n,dt,dx,source,diri_bc,rel_tol,abs_tolerance,weight,max_internal_niter,v_sol) ! in :fd:finite-diff.f95
+            real dimension(n + 1),intent(in), depend(n) :: v
+            real dimension(n + 1),intent(in),depend(n) :: v_old
+            integer, intent(in) :: n
+            real intent(in) :: dt
+            real intent(in) :: dx
+            real intent(in) :: source
+            real intent(in) :: diri_bc
+            real intent(in) :: rel_tol
+            real intent(in) :: abs_tolerance
+            real intent(in) :: weight
+            integer intent(in) :: max_internal_niter
+            real dimension(n + 1),intent(out),depend(n) :: v_sol
+        end subroutine finite_diff
+    end interface 
+end python module fd
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
