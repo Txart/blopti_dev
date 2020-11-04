@@ -1,4 +1,4 @@
-subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolerance, weight, max_internal_niter)
+subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
 ! =====================================================
 ! Finite differences solution algorithm
 ! Uses lapack library solvers
@@ -8,7 +8,8 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 	integer, intent(in) :: max_internal_niter, N
 	real, intent(in) :: dt, dx, diri_bc, rel_tol, abs_tolerance, weight, source
 	real, intent(in) :: v_old(N+1)
-	real, intent(inout):: v(N+1)
+	real, intent(in):: v(N+1)
+	real, intent(out) :: v_sol(N+1)
 
 	
 	integer :: i, info, ipiv(N+1)
@@ -17,8 +18,10 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 	
 	du2 = 0.0
 
+	v_sol = v
+
 	do i=1,max_internal_niter
-		call j_diag_parts_and_f(N, v, v_old, diri_bc, source, dx, dt, d, du, dl, efe)
+		call j_diag_parts_and_f(N, v_sol, v_old, diri_bc, source, dx, dt, d, du, dl, efe)
 		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
 		! if (info<0) then
 			! print *, "some parameter  in the matrix has an illegal value"
@@ -26,7 +29,7 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 			! print *, "U is exactly singular"
 		eps_x = -efe ! eps_x gets rewritten with the solution
 		call sgttrs('N', N+1, N+1, dl, d, du, du2, ipiv, eps_x, N+1, info) ! solve with Lapack
-		v = v + weight*eps_x
+		v_sol = v_sol + weight*eps_x
 		
         ! stopping criterion
         residue =  sqrt ( sum ( efe(:N+1)*efe(:N+1) )) - rel_tol
@@ -35,8 +38,8 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 			exit
 		end if
 	end do
-
-    return
+	
+	return
 end subroutine finite_diff
 
 subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)

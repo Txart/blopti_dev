@@ -3,10 +3,10 @@
 
 python module fd ! in 
     interface  ! in :fd
-        subroutine finite_diff(v,v_old,n,dt,dx,source,diri_bc,rel_tol,abs_tolerance,weight,max_internal_niter) ! in :fd:finite-diff.f95
-            real dimension(n + 1),intent(inout), depend(n) :: v
+        subroutine finite_diff(v,v_old,n,dt,dx,source,diri_bc,rel_tol,abs_tolerance,weight,max_internal_niter,v_sol) ! in :fd:finite-diff.f95
+            real dimension(n + 1),intent(in), depend(n) :: v
             real dimension(n + 1),intent(in),depend(n) :: v_old
-            integer,intent(in) :: n
+            integer, intent(in) :: n
             real intent(in) :: dt
             real intent(in) :: dx
             real intent(in) :: source
@@ -15,6 +15,7 @@ python module fd ! in
             real intent(in) :: abs_tolerance
             real intent(in) :: weight
             integer intent(in) :: max_internal_niter
+            real dimension(n + 1),intent(out),depend(n) :: v_sol
         end subroutine finite_diff
     end interface 
 end python module fd
