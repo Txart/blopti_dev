@@ -19,7 +19,7 @@ plotOpt = False
  Params 
 """
 
-params = [2.0, 1.1, 1.0, 2.0]
+params = [1.0, 1.1, 1.0, 1.0]
 s1 = params[0]; s2 = params[1]
 t1 = params[2]; t2 = params[3]
 
@@ -67,7 +67,7 @@ v_old = v_ini[:] # v_ini is used later for others
 SOURCE = 3. # P- ET
 
 def S(u, b):
-    return s2 * (u + np.exp(s1 + s2*b)/s2)
+    return s2 * u + np.exp(s1 + s2*b)
 
 def T(u, b):
     return np.exp(t1)/t2 * (np.power(s2 * np.exp(-s1) * u + np.exp(s2*b), t2/s2) - np.exp(t2*b))
@@ -77,6 +77,7 @@ def dif(u):
     b=-4.
     return T(u, b) * np.power(S(u, b), -1)
 
+    
 def dif_u(u):
     b = -4.
     # Derivative of diffusivity with respect to theta
@@ -85,8 +86,7 @@ def dif_u(u):
     # S_prime = s2
     
 
-    diffusivity_prime = (T_prime/S(u,b) - 
-                         T(u, b) * s2) * np.power(S(u, b), -2)        
+    diffusivity_prime = T_prime/S(u,b) - T(u, b) * s2 * np.power(S(u, b), -2)        
     
     return diffusivity_prime
 
@@ -172,7 +172,7 @@ v_fp.constrain(0, where=mesh.facesLeft) # left BC is always Dirichlet
 
 def dif_fp(u):
     b=-4.
-    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) * np.power(s2 * (u + numerix.exp(s1 + s2*b)/s2), -1)
+    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * u + numerix.exp(s1 + s2*b))
     
     return D
 
