@@ -163,9 +163,9 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 			real :: y, A
 			
 			! notation
-			A = s2 * exp(-s1)*x + exp(s2*b)
+			A = s2 * exp(-s1)*x + exp(s2*bi)
 
-			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*b))/A
+			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
 			return
 		end function
 
@@ -174,9 +174,9 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 			real :: y, A
 			
 			! notation
-			A = s2 * exp(-s1)*x + exp(s2*b)
+			A = s2 * exp(-s1)*x + exp(s2*bi)
 			
-			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*b))
+			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
 			return
 		end function
 
