@@ -48,6 +48,7 @@ def cheb(N):
 #    BC: u(-1) = 0; u'(1) = 0; IC: u(0) = 1
 # Preparation for actual one
 
+print('>>>>> Chebyshev started')
 c_start_time = time.time()
 
 N = 10
@@ -156,6 +157,8 @@ N = 10 # cheby starts at pos=0
 
 dx = 2/N
 
+print('\n >>>>> FiPy started')
+
 f_start_time = time.time()
 
 mesh = fp.Grid1D(nx=N, dx=dx)
@@ -257,6 +260,8 @@ if plotOpt:
     # Simple Cheby: d/dx(A(u) du/dx) -> D(A(u_cheby)*Du_cheby)
     # Direct computation of the 2nd derivative
 
+print('\n >>>>> Simple chebyshev started')
+
 c_start_time = time.time()
 
 N = 10
@@ -316,6 +321,8 @@ if plotOpt:
 #%%
 # Cheby implicit
     
+print('\n >>>>> Chebyshev implicit started')
+
 c_start_time = time.time()
 
 N = 10
@@ -377,6 +384,8 @@ if plotOpt:
 
 #%%
 # Cheby simplewith implicit backward Euler Neton-Rhapson method
+
+print('\n >>>>> Chebyshev implicit started')
 
 c_start_time = time.time()
 
@@ -624,7 +633,7 @@ def F_newton(v, source, delta_t, v_old, diri_bc):
     
     return F
 
-
+print('\n >>>>> Finite diff Python started')
 
 c_start_time = time.time()
 
@@ -684,10 +693,9 @@ for t in range(TIMESTEPS):
     rel_tol = rel_tolerance * np.linalg.norm(F_newton(v, SOURCE, dt, v_old, DIRI))
 
     for i in range(0, MAX_INTERNAL_NITER):
-        J = jacobian(v, dt, N)
+        # J = jacobian(v, dt, N)
         # J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif_simple, dif_u_simple, DIRI, SOURCE)
-        # J = jacobian_vectorial(v, dt, N, a, a_u)
-        F = F_newton(v, SOURCE, dt, v_old, DIRI)
+        J, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE)        # F = F_newton(v, SOURCE, dt, v_old, DIRI)
         
         eps_x = np.linalg.solve(J,-F)
         # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
@@ -752,6 +760,7 @@ import fd # own fortran functions
 
 # TODO: USE np.asfortranarray()  before calling to fortran FUNCTIONS IN THE FUTURE
 
+print('\n >>>>> Finite diff FORTRAN started')
 c_start_time = time.time()
 
 
