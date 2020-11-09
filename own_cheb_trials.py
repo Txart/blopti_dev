@@ -825,8 +825,8 @@ for t in range(TIMESTEPS):
 
         # stopping criterion
         residue = np.linalg.norm(F) - rel_tol
+        print(residue)
         if residue < abs_tolerance:
-            print(residue)
             print(f'Solution of the Newton linear system in {i} iterations')
             break
     
