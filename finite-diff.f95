@@ -133,20 +133,22 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
     e = 1/(2*delta_x**2)
 
     do i=2,N
-        J(i,i-1) = e*(-dif_prime(v(i-1), b(i-1))*v(i-1) - dif(v(i), b(i)) - dif(v(i-1), b(i-1)) + & 
-						dif_prime(v(i-1), b(i-1))*v(i))
+        J(i,i-1) = e*(-dif_prime(v(i-1), b(i-1), s1, s2, t1, t2)*v(i-1) - dif(v(i), b(i), s1, s2, t1, t2) &
+					- dif(v(i-1), b(i-1), s1, s2, t1, t2) + dif_prime(v(i-1), b(i-1), s1, s2, t1, t2)*v(i))
 
-        J(i,i) = e*(-dif_prime(v(i), b(i))*v(i-1) + 2*dif_prime(v(i), b(i))*v(i) - & 
-					dif_prime(v(i), b(i))*v(i+1) + dif(v(i+1), b(i+1)) & 
-                        + 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) + 1/delta_t
+        J(i,i) = e*(-dif_prime(v(i), b(i), s1, s2, t1, t2)*v(i-1) + 2*dif_prime(v(i), b(i), s1, s2, t1, t2)*v(i) - & 
+					dif_prime(v(i), b(i), s1, s2, t1, t2)*v(i+1) + dif(v(i+1), b(i+1), s1, s2, t1, t2) & 
+                        + 2*dif(v(i), b(i), s1, s2, t1, t2) + dif(v(i-1), b(i-1), s1, s2, t1, t2)) + 1/delta_t
 
-        J(i,i+1) = e*(dif_prime(v(i+1), b(i+1))*v(i) - dif(v(i+1), b(i+1)) - dif(v(i), b(i)) &
-						- dif_prime(v(i+1), b(i+1))*v(i+1))
+        J(i,i+1) = e*(dif_prime(v(i+1), b(i+1), s1, s2, t1, t2)*v(i) - dif(v(i+1), b(i+1), s1, s2, t1, t2) &
+					- dif(v(i), b(i), s1, s2, t1, t2) - dif_prime(v(i+1), b(i+1), s1, s2, t1, t2)*v(i+1))
 
         ! F
-        F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
-							+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
-                       + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) - source - v_old(i)/delta_t + v(i)/delta_t
+        F(i) = -e*((dif(v(i), b(i), s1, s2, t1, t2) + dif(v(i-1), b(i-1), s1, s2, t1, t2))*v(i-1) & 
+				-v(i)*(dif(v(i+1), b(i+1), s1, s2, t1, t2) & 
+					+ 2*dif(v(i), b(i), s1, s2, t1, t2) + dif(v(i-1), b(i-1), s1, s2, t1, t2)) &
+                       + v(i+1)*(dif(v(i+1), b(i+1), s1, s2, t1, t2) + dif(v(i), b(i), s1, s2, t1, t2))) &
+					   - source - v_old(i)/delta_t + v(i)/delta_t
 
     end do
 
@@ -155,18 +157,22 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
     J(1,1) = 1
     F(1) = diri_bc
     ! Neumann with diffusivity(u(L))*u'(L)=0 in x=N
-    aL = dif(v(N), b(N))
-    J(N+1,N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &
-					+ aL + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
-    J(N+1,N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - aL &
-					- 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
-    F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) -v(N+1)*(aL + 2*dif(v(N+1), b(N+1)) + & 
-						dif(v(N), b(N)))+ v(N)*(aL + dif(v(N+1), b(N+1)))) &
+    aL = dif(v(N), b(N), s1, s2, t1, t2)
+    J(N+1,N+1) = e*(-dif_prime(v(N), b(N), s1, s2, t1, t2)*v(N) + 2*dif_prime(v(N+1), b(N+1), s1, s2, t1, t2)*v(N+1) &
+					+ aL + 2*dif(v(N+1), b(N+1), s1, s2, t1, t2) + dif(v(N), b(N), s1, s2, t1, t2)) + 1/delta_t
+    J(N+1,N) = e*(-dif_prime(v(N), b(N), s1, s2, t1, t2)*v(N) + dif_prime(v(N), b(N), s1, s2, t1, t2)*v(N+1) - aL &
+					- 2*dif(v(N+1), b(N+1), s1, s2, t1, t2) - dif(v(N), b(N), s1, s2, t1, t2)) &
+					-delta_x*e*(dif_prime(v(N+1), b(N+1), s1, s2, t1, t2))
+    F(N+1) = -e*((dif(v(N+1), b(N+1), s1, s2, t1, t2) + dif(v(N), b(N), s1, s2, t1, t2))*v(N) & 
+					-v(N+1)*(aL + 2*dif(v(N+1), b(N+1), s1, s2, t1, t2) + & 
+						dif(v(N), b(N), s1, s2, t1, t2))+ v(N)*(aL + dif(v(N+1), b(N+1), s1, s2, t1, t2))) &
 						- source - v_old(N+1)/delta_t + v(N+1)/delta_t
+		
 
-	contains ! Add subroutines in here in order to share parameters
-		function dif(x,bi) result(y)
-			real, intent(in) :: x, bi
+end subroutine j_and_f
+
+function dif(x, bi, s1, s2, t1, t2) result(y)
+			real, intent(in) :: x, bi, s1, s2, t1, t2
 			real :: y, A
 			
 			! notation
@@ -176,8 +182,8 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 			return
 		end function
 
-		function dif_prime(x, bi) result(y)
-			real, intent(in) :: x, bi
+		function dif_prime(x, bi, s1, s2, t1, t2) result(y)
+			real, intent(in) :: x, bi, s1, s2, t1, t2
 			real :: y, A
 			
 			! notation
@@ -186,24 +192,6 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
 			return
 		end function
-
-end subroutine j_and_f
-
-! function dif(x) result(y)
-    ! real, intent(in) :: x
-    ! real :: y
-
-        ! y = np.exp(t1)/t2 * (np.power(s2 * np.exp(-s1) * u + np.exp(s2*b), t2/s2) - np.exp(t2*b)) / (s2 * (u + np.exp(s1 + s2*b)/s2))
-    ! return
-! end function
-
-! function dif_prime(x) result(y)
-	! real, intent(in) :: x
-	! real :: y
-
-        ! y = 0.
-        ! return
-! end function
 
 
 ! subroutine dif_vector(x, x_length, D)
