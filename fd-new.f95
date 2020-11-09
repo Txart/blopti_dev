@@ -60,7 +60,7 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 			A = s2 * exp(-s1)*x + exp(s2*bi)
 
 			dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
-		end function
+		end function dif
 
 		real function dif_prime(x, bi)
 			real, intent(in) :: x, bi
@@ -70,6 +70,6 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 			A = s2 * exp(-s1)*x + exp(s2*bi)
 
 			dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
-		end function
+		end function dif_prime
 
 end subroutine j_and_f

@@ -781,7 +781,7 @@ v = v_ini[:]
 v_old = v_ini[:] # in the previous timestep
 
 
-
+b = np.ones(shape=v.shape) * (-4)
 
 # Relaxation parameter
 weight = 0.1
@@ -814,7 +814,7 @@ for t in range(TIMESTEPS):
     rel_tol = rel_tolerance * np.linalg.norm(F)
 
     for i in range(0, MAX_INTERNAL_NITER):
-        J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
+        J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
         
         eps_x = np.linalg.solve(J,-F)
         # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
