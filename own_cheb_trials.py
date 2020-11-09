@@ -829,6 +829,7 @@ for t in range(TIMESTEPS):
     
     v_old = v[:]
     v_plot[t+1] = v[:]
+    print(i, v_old.value)
     
     
 
