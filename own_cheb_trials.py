@@ -260,181 +260,181 @@ if plotOpt:
     # Simple Cheby: d/dx(A(u) du/dx) -> D(A(u_cheby)*Du_cheby)
     # Direct computation of the 2nd derivative
 
-print('\n >>>>> Simple chebyshev started')
+# print('\n >>>>> Simple chebyshev started')
 
-c_start_time = time.time()
+# c_start_time = time.time()
 
-N = 10
-D,x = cheb(N)
-x = x; D=D # Dimension of the domain
-# D2 = D @ D # matrix multiplication
+# N = 10
+# D,x = cheb(N)
+# x = x; D=D # Dimension of the domain
+# # D2 = D @ D # matrix multiplication
 
-# IC
-# We have to interpolate the initial value to the cheby points x!
-# In this constant case, it's the same
-v_ini = np.ones(shape=x.shape)*INI_VALUE
-# BC
-v_ini[-1] = 0
+# # IC
+# # We have to interpolate the initial value to the cheby points x!
+# # In this constant case, it's the same
+# v_ini = np.ones(shape=x.shape)*INI_VALUE
+# # BC
+# v_ini[-1] = 0
 
-v_old = v_ini[:] # v_ini is used later for others
-
-
+# v_old = v_ini[:] # v_ini is used later for others
 
 
-def forward_Euler(v_old, dt):
-    return v_old + dt*( D @ (dif_simple(v_old) * (D @ v_old)) + SOURCE)
+
+
+# def forward_Euler(v_old, dt):
+#     return v_old + dt*( D @ (dif_simple(v_old) * (D @ v_old)) + SOURCE)
 
     
  
-# Solve iteratively
-dt = 0.00001
-TIMESTEPS = 3
-niter = int(TIMESTEPS/dt)
-v_plot = [0]*(niter+1)
-v_plot[0] = v_old
-for i in range(niter):
-    v_new = forward_Euler(v_old, dt)
-    v_new[-1] = 0 # Diri BC
-    nbc =  D[0,1:] @ v_new[1:] # Neumann BC
-    v_new[0] = -1/D[0,0] * nbc
-    v_old = v_new
+# # Solve iteratively
+# dt = 0.00001
+# TIMESTEPS = 3
+# niter = int(TIMESTEPS/dt)
+# v_plot = [0]*(niter+1)
+# v_plot[0] = v_old
+# for i in range(niter):
+#     v_new = forward_Euler(v_old, dt)
+#     v_new[-1] = 0 # Diri BC
+#     nbc =  D[0,1:] @ v_new[1:] # Neumann BC
+#     v_new[0] = -1/D[0,0] * nbc
+#     v_old = v_new
     
-    v_plot[i+1] = v_old
+#     v_plot[i+1] = v_old
 
-print(f"Cheb Simple time(s) = {time.time() - c_start_time}")  
+# print(f"Cheb Simple time(s) = {time.time() - c_start_time}")  
 
-if plotOpt:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title('Chebyshev New')
+# if plotOpt:
+#     # Waterfall plot
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
+#     ax.set_title('Chebyshev New')
     
-    v_plot = np.array(v_plot)
-    v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+#     v_plot = np.array(v_plot)
+#     v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
     
-    for j in range(v_plot.shape[0]):
-        ys = j*np.ones(v_plot.shape[1])
-        ax.plot(x,ys,v_plot[j,:])
+#     for j in range(v_plot.shape[0]):
+#         ys = j*np.ones(v_plot.shape[1])
+#         ax.plot(x,ys,v_plot[j,:])
 
 
 
 #%%
-# Cheby implicit
+# # Cheby implicit
     
-print('\n >>>>> Chebyshev implicit started')
+# print('\n >>>>> Chebyshev implicit started')
 
-c_start_time = time.time()
+# c_start_time = time.time()
 
-N = 10
-INI_VALUE = -2.0
-DELTA_t = 1.0 # in days
-v_ini = np.ones(shape=x.shape)*INI_VALUE
-# BC
-v_ini[-1] = 0
+# N = 10
 
-v_old = v_ini[:] # v_ini is used later for others
+# DELTA_t = 1.0 # in days
+# v_ini = np.ones(shape=x.shape)*INI_VALUE
+# # BC
+# v_ini[-1] = 0
 
-def dif_u_u_simple(u):
-    return 0.
+# v_old = v_ini[:] # v_ini is used later for others
 
-# Picard iteration
-def picard(v, source, DELTA_t):
-    a = DELTA_t * ((dif_u_simple(v)*(D @ v)) @ D - np.eye(N+1) + dif_simple(v)*np.eye(N+1) @ D2)
-    b = v + source
-    return np.linalg.solve(a,b)
+# def dif_u_u_simple(u):
+#     return 0.
 
-def newton(v, v0, source, DELTA_t):
-    # v0 is the value in the previous iteration
-    a = DELTA_t*((2*dif_u_simple(v)*(D@v)*np.eye(N+1)) @ D + dif_u_u_simple(v)*(D@v)*(D@v)*np.eye(N+1) +
-          (dif_simple(v)*np.eye(N+1))@D2 + dif_u_simple(v)*(D2@v)*np.eye(N+1)) - np.eye(N+1)
-    b = DELTA_t*(dif_u_simple(v)*(D@v)*(D@v) + dif_simple(v)*(D2@v) + source) + v0 - v
+# # Picard iteration
+# def picard(v, source, DELTA_t):
+#     a = DELTA_t * ((dif_u_simple(v)*(D @ v)) @ D - np.eye(N+1) + dif_simple(v)*np.eye(N+1) @ D2)
+#     b = v + source
+#     return np.linalg.solve(a,b)
+
+# def newton(v, v0, source, DELTA_t):
+#     # v0 is the value in the previous iteration
+#     a = DELTA_t*((2*dif_u_simple(v)*(D@v)*np.eye(N+1)) @ D + dif_u_u_simple(v)*(D@v)*(D@v)*np.eye(N+1) +
+#           (dif_simple(v)*np.eye(N+1))@D2 + dif_u_simple(v)*(D2@v)*np.eye(N+1)) - np.eye(N+1)
+#     b = DELTA_t*(dif_u_simple(v)*(D@v)*(D@v) + dif_simple(v)*(D2@v) + source) + v0 - v
     
-    return np.linalg.solve(a,b)    
+#     return np.linalg.solve(a,b)    
     
 
-TIMESTEPS = 3
-weight = 0.0001
-internal_niter = 10000
-v_plot = [0]*(TIMESTEPS+1)
-v_plot[0] = v_old[:]
-for t in range(TIMESTEPS):
-    v0 = v_old[:]
-    for i in range(internal_niter):
-        v_new = v_old + weight * newton(v_old, v0, SOURCE, DELTA_t)
-        v_new[-1] = 0 # Diri BC
-        nbc =  D[0,1:] @ v_new[1:] # Neumann BC
-        v_new[0] = -1/D[0,0] * nbc
-        v_old = v_new[:] 
-    v_plot[t+1] = v_old[:]
+# TIMESTEPS = 3
+# weight = 0.0001
+# internal_niter = 10000
+# v_plot = [0]*(TIMESTEPS+1)
+# v_plot[0] = v_old[:]
+# for t in range(TIMESTEPS):
+#     v0 = v_old[:]
+#     for i in range(internal_niter):
+#         v_new = v_old + weight * newton(v_old, v0, SOURCE, DELTA_t)
+#         v_new[-1] = 0 # Diri BC
+#         nbc =  D[0,1:] @ v_new[1:] # Neumann BC
+#         v_new[0] = -1/D[0,0] * nbc
+#         v_old = v_new[:] 
+#     v_plot[t+1] = v_old[:]
 
-print(f"Cheb implicit time(s) = {time.time() - c_start_time}")  
+# print(f"Cheb implicit time(s) = {time.time() - c_start_time}")  
 
-if plotOpt:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title('Chebyshev implicit')
+# if plotOpt:
+#     # Waterfall plot
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
+#     ax.set_title('Chebyshev implicit')
     
-    v_plot = np.array(v_plot)
+#     v_plot = np.array(v_plot)
     
     
-    for j in range(v_plot.shape[0]):
-        ys = j*np.ones(v_plot.shape[1])
-        ax.plot(x,ys,v_plot[j,:])
+#     for j in range(v_plot.shape[0]):
+#         ys = j*np.ones(v_plot.shape[1])
+#         ax.plot(x,ys,v_plot[j,:])
 
 #%%
-# Cheby simplewith implicit backward Euler Neton-Rhapson method
+# # Cheby simplewith implicit backward Euler Neton-Rhapson method
 
-print('\n >>>>> Chebyshev implicit started')
+# print('\n >>>>> Chebyshev implicit started')
 
-c_start_time = time.time()
+# c_start_time = time.time()
 
-N = 10
-INI_VALUE = -2.0
-DELTA_t = 1.0 # in days
-v_ini = np.ones(shape=x.shape)*INI_VALUE
-# BC
-v_ini[-1] = 0
+# N = 10
 
-v_old = v_ini[:] # v_ini is used later for others
+# DELTA_t = 1.0 # in days
+# v_ini = np.ones(shape=x.shape)*INI_VALUE
+# # BC
+# v_ini[-1] = 0
 
-def newton(v, v0, source, DELTA_t):
-    # v0 is the value in the previous iteration
-    a = DELTA_t*((D @ (dif_u_simple(v) * (D @ v)))*np.eye(N+1) + (D @ dif_simple(v)) * D) - np.eye(N+1)
-    b = DELTA_t*(D @ (dif_simple(v)*(D @ v)) + source) + v0 - v
+# v_old = v_ini[:] # v_ini is used later for others
+
+# def newton(v, v0, source, DELTA_t):
+#     # v0 is the value in the previous iteration
+#     a = DELTA_t*((D @ (dif_u_simple(v) * (D @ v)))*np.eye(N+1) + (D @ dif_simple(v)) * D) - np.eye(N+1)
+#     b = DELTA_t*(D @ (dif_simple(v)*(D @ v)) + source) + v0 - v
     
-    return np.linalg.solve(a,b)    
+#     return np.linalg.solve(a,b)    
     
 
-TIMESTEPS = 3
-weight = 0.0001
-internal_niter = 10000
-v_plot = [0]*(TIMESTEPS+1)
-v_plot[0] = v_old[:]
-for t in range(TIMESTEPS):
-    v0 = v_old[:]
-    for i in range(internal_niter):
-        v_new = v_old + weight * newton(v_old, v0, SOURCE, DELTA_t)
-        v_new[-1] = 0 # Diri BC
-        nbc =  D[0,1:] @ v_new[1:] # Neumann BC
-        v_new[0] = -1/D[0,0] * nbc
-        v_old = v_new[:] 
-    v_plot[t+1] = v_old[:]
+# TIMESTEPS = 3
+# weight = 0.0001
+# internal_niter = 10000
+# v_plot = [0]*(TIMESTEPS+1)
+# v_plot[0] = v_old[:]
+# for t in range(TIMESTEPS):
+#     v0 = v_old[:]
+#     for i in range(internal_niter):
+#         v_new = v_old + weight * newton(v_old, v0, SOURCE, DELTA_t)
+#         v_new[-1] = 0 # Diri BC
+#         nbc =  D[0,1:] @ v_new[1:] # Neumann BC
+#         v_new[0] = -1/D[0,0] * nbc
+#         v_old = v_new[:] 
+#     v_plot[t+1] = v_old[:]
 
-print(f"Cheb implicit time(s) = {time.time() - c_start_time}")  
+# print(f"Cheb implicit time(s) = {time.time() - c_start_time}")  
 
-if plotOpt:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title('Chebyshev simple implicit')
+# if plotOpt:
+#     # Waterfall plot
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
+#     ax.set_title('Chebyshev simple implicit')
     
-    v_plot = np.array(v_plot)
+#     v_plot = np.array(v_plot)
     
     
-    for j in range(v_plot.shape[0]):
-        ys = j*np.ones(v_plot.shape[1])
-        ax.plot(x,ys,v_plot[j,:])
+#     for j in range(v_plot.shape[0]):
+#         ys = j*np.ones(v_plot.shape[1])
+#         ax.plot(x,ys,v_plot[j,:])
 
 
 #%%
@@ -712,6 +712,7 @@ for t in range(TIMESTEPS):
     
     v_old = v[:]
     v_plot[t+1] = v[:]
+    print(i, v_old)
     
     
 
