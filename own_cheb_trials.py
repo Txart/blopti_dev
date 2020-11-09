@@ -679,7 +679,7 @@ v_plot = [0]*(TIMESTEPS+1)
 v_plot[0] = v_ini[:]
 
 
-MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+MAX_INTERNAL_NITER = 1000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 for t in range(TIMESTEPS):
     # Update source
