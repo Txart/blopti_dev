@@ -109,7 +109,27 @@ end subroutine j_diag_parts_and_f
 
 ! end subroutine only_f
 
+function dif(x, bi, s1, s2, t1, t2) result(y)
+			real, intent(in) :: x, bi, s1, s2, t1, t2
+			real :: y, A
+			
+			! notation
+			A = s2 * exp(-s1)*x + exp(s2*bi)
 
+			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
+			return
+		end function
+
+		function dif_prime(x, bi, s1, s2, t1, t2) result(y)
+			real, intent(in) :: x, bi, s1, s2, t1, t2
+			real :: y, A
+			
+			! notation
+			A = s2 * exp(-s1)*x + exp(s2*bi)
+			
+			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
+			return
+		end function
 
 subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, source, J, F)
 ! =====================================================
@@ -170,28 +190,6 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 		
 
 end subroutine j_and_f
-
-function dif(x, bi, s1, s2, t1, t2) result(y)
-			real, intent(in) :: x, bi, s1, s2, t1, t2
-			real :: y, A
-			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*bi)
-
-			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
-			return
-		end function
-
-		function dif_prime(x, bi, s1, s2, t1, t2) result(y)
-			real, intent(in) :: x, bi, s1, s2, t1, t2
-			real :: y, A
-			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*bi)
-			
-			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
-			return
-		end function
 
 
 ! subroutine dif_vector(x, x_length, D)
