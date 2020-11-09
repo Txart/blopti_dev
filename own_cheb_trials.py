@@ -813,7 +813,8 @@ for t in range(TIMESTEPS):
     # Compute tolerance. Each day, a new tolerance because source changes
     _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
     rel_tol = rel_tolerance * np.linalg.norm(F)
-
+    print(rel_tol)
+    
     for i in range(0, MAX_INTERNAL_NITER):
         J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
         
@@ -825,7 +826,6 @@ for t in range(TIMESTEPS):
 
         # stopping criterion
         residue = np.linalg.norm(F) - rel_tol
-        print(residue)
         if residue < abs_tolerance:
             print(f'Solution of the Newton linear system in {i} iterations')
             break
