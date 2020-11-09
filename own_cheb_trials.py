@@ -201,7 +201,7 @@ for i in range(TIMESTEPS):
         # print(i, res)
         resOld=res
         res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
-        if abs(res - resOld) < 1e-9: break # it has reached to the solution of the linear system
+        if abs(res - resOld) < 1e-6: break # it has reached to the solution of the linear system
     
      # Append to list
     sol_fp[i+1] = copy.copy(v_fp.value[:])
@@ -705,7 +705,7 @@ for t in range(TIMESTEPS):
         v = v + weight*eps_x
 
         # stopping criterion
-        residue = np.linalg.norm(F) - rel_tolerance
+        residue = np.linalg.norm(F) - rel_tol
         if residue < abs_tolerance:
             print(f'Solution of the Newton linear system in {i} iterations')
             break
@@ -766,8 +766,8 @@ print('\n >>>>> Finite diff FORTRAN started')
 c_start_time = time.time()
 
 
-rel_tolerance = 1e-9
-abs_tolerance = 1e-9
+rel_tolerance = 1e-6
+abs_tolerance = 1e-6
 
 N = 10
 dt = 1.0 # in days
