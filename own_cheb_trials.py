@@ -791,7 +791,7 @@ a = dif_simple
 a_u = dif_u_simple
 e = 1/(2*dx**2)
 
-J, F = fd.j_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=SOURCE)
+J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
 
 # Plotting stuff
 v_plot = [0]*(TIMESTEPS+1)
@@ -809,7 +809,7 @@ for t in range(TIMESTEPS):
     # No-flux in the right all the time
     
     # Compute tolerance. Each day, a new tolerance because source changes
-    _, F = fd.j_diag_parts_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, source=source)
+    _, F = fd.j_diag_parts_and_f(n=N, v=v, v_old=v_old, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
  
     rel_tol = rel_tolerance * np.linalg.norm(F)
 
