@@ -666,7 +666,7 @@ a_u = dif_u
 e = 1/(2*dx**2)
 
 J = jacobian(v, dt, N)
-J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE)
+J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif, dif_u, DIRI, SOURCE)
 
 # J_banded = jacobian_diag_ordered(v, dt, N)
 # F = F_newton(v, SOURCE, dt, v_old, DIRI)
@@ -695,7 +695,8 @@ for t in range(TIMESTEPS):
     for i in range(0, MAX_INTERNAL_NITER):
         # J = jacobian(v, dt, N)
         # J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif_simple, dif_u_simple, DIRI, SOURCE)
-        J, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE)        # F = F_newton(v, SOURCE, dt, v_old, DIRI)
+        J, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE)
+        # F = F_newton(v, SOURCE, dt, v_old, DIRI)
         
         eps_x = np.linalg.solve(J,-F)
         # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
