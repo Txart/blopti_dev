@@ -165,26 +165,24 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 						- source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
 	contains ! Add subroutines in here in order to share parameters
-		function dif(x,bi) result(y)
+		real function dif(x,bi)
 			real, intent(in) :: x, bi
-			real :: y, A
+			real :: A
 			
 			! notation
 			A = s2 * exp(-s1)*x + exp(s2*bi)
 
-			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
-			return
+			dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
 		end function
 
-		function dif_prime(x, bi) result(y)
+		real function dif_prime(x, bi)
 			real, intent(in) :: x, bi
-			real :: y, A
+			real :: A
 			
 			! notation
 			A = s2 * exp(-s1)*x + exp(s2*bi)
-			
-			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
-			return
+
+			dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
 		end function
 
 end subroutine j_and_f
