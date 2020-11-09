@@ -127,31 +127,7 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
     real, intent(out) :: J(N+1,N+1), F(N+1)
 
     integer :: i
-    real :: e
-	
-	contains ! Add subroutines in here in order to share parameters
-		function dif(x,bi) result(y)
-			real, intent(in) :: x, bi
-			real :: y, A
-			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*b)
-
-			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*b))/A
-			return
-		end function
-
-		function dif_prime(x, bi) result(y)
-			real, intent(in) :: x, bi
-			real :: y, A
-			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*b)
-			
-			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*b))
-			return
-		end function
-	
+    real :: e	
 
     ! notation
     e = 1/(2*delta_x**2)
@@ -181,7 +157,29 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
     F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) -v(N+1)*(aL + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) &
                       + v(N)*(aL + dif(v(N+1), b(N+1)))) - source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
-    return
+	contains ! Add subroutines in here in order to share parameters
+		function dif(x,bi) result(y)
+			real, intent(in) :: x, bi
+			real :: y, A
+			
+			! notation
+			A = s2 * exp(-s1)*x + exp(s2*b)
+
+			y = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*b))/A
+			return
+		end function
+
+		function dif_prime(x, bi) result(y)
+			real, intent(in) :: x, bi
+			real :: y, A
+			
+			! notation
+			A = s2 * exp(-s1)*x + exp(s2*b)
+			
+			y = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*b))
+			return
+		end function
+
 end subroutine j_and_f
 
 ! function dif(x) result(y)
