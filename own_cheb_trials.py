@@ -638,8 +638,8 @@ print('\n >>>>> Finite diff Python started')
 c_start_time = time.time()
 
 
-rel_tolerance = 1e-9
-abs_tolerance = 1e-9
+rel_tolerance = 1e-6
+abs_tolerance = 1e-6
 
 N = 10
 dt = 1.0 # in days
@@ -826,6 +826,7 @@ for t in range(TIMESTEPS):
         # stopping criterion
         residue = np.linalg.norm(F) - rel_tol
         if residue < abs_tolerance:
+            print(residue)
             print(f'Solution of the Newton linear system in {i} iterations')
             break
     
