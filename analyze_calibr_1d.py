@@ -115,7 +115,7 @@ def read_from_backend(filename):
     
     return reader
 
-fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
+fname = r"mcmc_result_chain.h5"
 # fname = "mcmc_result_chain.h5"
 reader = read_from_backend(fname)
 fat_samples = reader.get_chain(flat=False)
@@ -176,8 +176,8 @@ max_likelihood_params = flat_samples_all[np.where(log_probs_all==max_lp)[0]][0]
 def Sy(zeta, s1, s2):
     return np.exp(s1 + s2 * zeta)
     
-def T(zeta, t1, t2):
-    return np.exp(t1 + t2*zeta)
+def T(zeta, t1, t2, b):
+    return np.exp(t1)/t2 * (np.exp(t2*zeta) - np.exp(t2*b))
 
 n_samples = len(flat_samples)
 
@@ -192,6 +192,7 @@ sorted_flatsamples = flat_samples[-log_probs.argsort()] # samples sorted by log_
 zeta_grid = np.arange(-3, 1, 0.01)
 # h_2d_grid = np.array([h_grid,]*n_samples)
 sto_array = np.array([Sy(zeta_grid, s1, s2) for s1, s2, _, _ in sorted_flatsamples])
+# TODO: pass also b.
 tra_array = np.array([T(zeta_grid, t1, t2) for _, _, t1, t2  in sorted_flatsamples])
 
 sto_ci = [0] * len(conf_int_perc) # [[Smin_ci1, Smax_ci1], [Smin_ci2, Smax_ci2], ...]

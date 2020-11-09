@@ -12,7 +12,16 @@ import math
 import time
 
 #%%
-plotOpt = False
+plotOpt = True
+
+#%%
+"""
+ Params 
+"""
+
+params = [2.0, 1.1, 1.0, 2.0]
+s1 = params[0]; s2 = params[1]
+t1 = params[2]; t2 = params[3]
 
 #%%
 def cheb(N):
@@ -47,7 +56,7 @@ x = x; D=D # Dimension of the domain
 D2 = D @ D # matrix multiplication
 
 # IC
-INI_VALUE = -1.0
+INI_VALUE = 0.5
 v_ini = np.ones(shape=x.shape)*INI_VALUE
 # BC
 v_ini[-1] = 0
@@ -56,25 +65,29 @@ v_old = v_ini[:] # v_ini is used later for others
 
 SOURCE = 3. # P- ET
 
+def S(u, b):
+    return s2 * (u + np.exp(s1 + s2*b)/s2)
+
+def T(u, b):
+    return np.exp(t1)/t2 * (np.power(s2 * np.exp(-s1) * u + np.exp(s2*b), t2/s2) - np.exp(t2*b))
+
 def dif(u):
-    # Dffusivity
-    params = [2.0, 1.1, 1.0, 2.0, 2.3] # s0, s1, t0, t1, t2
-    s0 = params[0]; s1 = params[1];
-    t0 = params[1]; t1 = params[3]; t2 = params[4];
-    
-    D = t0/s1 * np.exp(t1 - t2*s0/s1) * np.power(u, t2/s1 - 1.)
-    
-    return D
+    # Diffusivity
+    b=-4.
+    return T(u, b) * np.power(S(u, b), -1)
 
 def dif_u(u):
+    b = -4.
     # Derivative of diffusivity with respect to theta
     # Have to hardcode the derivative
-    params = [2.0, 1.1, 1.0, 2.0, 2.3] # s0, s1, t0, t1, t2
-    s0 = params[0]; s1 = params[1];
-    t0 = params[1]; t1 = params[3]; t2 = params[4];
-    D_prime = t0/s1**2 * (t2-s1) * np.exp(t1 - t2*s0/s1) * np.power(u, (t2 - 2*s1)/s1)
+    T_prime = np.exp(t1-s1) * np.power(s2/np.exp(s1)* u + np.exp(s2*b), (t2-s2)/s2)
+    # S_prime = s2
     
-    return D_prime
+
+    diffusivity_prime = (S(u, b) * T_prime - 
+                         T(u, b) * s2) * np.power(S(u, b), -2)        
+    
+    return diffusivity_prime
 
 def dif_simple(u):
     return np.ones(u.shape)
@@ -155,10 +168,8 @@ v_fp.constrain(0, where=mesh.facesLeft) # left BC is always Dirichlet
 
 
 def dif_fp(u):
-    params = [2.0, 1.1, 1.0, 2.0, 1.3] # s0, s1, t0, t1, t2
-    s0 = params[0]; s1 = params[1];
-    t0 = params[1]; t1 = params[3]; t2 = params[4];
-    D = t0/s1 * numerix.exp(t1 - t2*s0/s1) * numerix.power(u, t2/s1 - 1.)
+    b=-4.
+    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) * np.power(s2 * (u + numerix.exp(s1 + s2*b)/s2), -1)
     
     return D
 
@@ -167,7 +178,7 @@ def dif_fp_simple(u):
     return 1.
 
 # Boussinesq eq. for theta
-eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=dif_fp_simple(v_fp)) + SOURCE
+eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=dif_fp(v_fp)) + SOURCE
 
 
 dt = 1.0
@@ -186,7 +197,7 @@ for i in range(TIMESTEPS):
     for r in range(MAX_SWEEPS):
         # print(i, res)
         resOld=res
-        res = eq.sweep(var=v_fp, dt=dt)
+        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
         if abs(res - resOld) < 1e-9: break # it has reached to the solution of the linear system
     
      # Append to list
@@ -641,8 +652,8 @@ v_old = v_ini[:] # in the previous timestep
 weight = 0.1
 
 # Notation
-a = dif_simple
-a_u = dif_u_simple
+a = dif
+a_u = dif_u
 e = 1/(2*dx**2)
 
 J = jacobian(v, dt, N)

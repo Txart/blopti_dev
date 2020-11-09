@@ -33,17 +33,19 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     # transmissivity is derived from this and written in terms of theta
     # This is the underlying storage coeff: S = exp(s1 + s2*zeta)
     # S is hidden in change from theta to h
-    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta + numerix.exp(s2*b), t2/s2) -
-                                      numerix.exp(t2*b))) * np.power(s2 * (theta + numerix.exp(s1 + s2*b)/s2), -1)
+    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) * np.power(s2 * (theta + numerix.exp(s1 + s2*b)/s2), -1)
     
     # Boussinesq eq. for theta
-    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=D) + source
+    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=(numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta 
+                                                                                           + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b)))
+                                                * np.power(s2 * (theta + numerix.exp(s1 + s2*b)/s2), -1)) + source
     
     theta_sol_list = [] # returned quantity
     
     MAX_SWEEPS = 1000
     
     for day in range(ndays):
+        print(f'day: {day}')
         
         theta.updateOld()
         
@@ -60,9 +62,10 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         
         res = 0.0
         for r in range(MAX_SWEEPS):
+            print(f'r: {r}')
             resOld=res
-            res = eq.sweep(var=theta, dt=dt)
-            if abs(res - resOld) < 1e-7: break # it has reached to the solution of the linear system
+            res = eq.sweep(var=theta, dt=0.001)
+            if abs(res - resOld) < 1e-7: break # it has reached the solution of the linear system
         
         # Append to list
         theta_sol = theta.value
@@ -72,6 +75,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     
     b_sensors = np.array([b[sl] for sl in sensor_loc[1:]])    
     zeta_from_theta_sol_sensors = zeta_from_theta(np.array(theta_sol_list), b_sensors)
+    print(zeta_from_theta_sol_sensors)
         
     return zeta_from_theta_sol_sensors
 
