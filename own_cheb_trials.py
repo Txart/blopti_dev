@@ -941,6 +941,7 @@ for t in range(TIMESTEPS):
                         diri_bc=DIRI, rel_tol=rel_tol, abs_tolerance=abs_tolerance,
                         weight=weight, max_internal_niter=MAX_INTERNAL_NITER)
     
+    print('\n also here')
     v_old = v[:]
     v_plot[t+1] = v[:]
     
