@@ -1,4 +1,4 @@
-subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
+subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
 ! =====================================================
 ! Finite differences solution algorithm
 ! Uses lapack library solvers
@@ -6,9 +6,8 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 	
 	
 	integer, intent(in) :: max_internal_niter, N
-	real, intent(in) :: dt, dx, diri_bc, rel_tol, abs_tolerance, weight, source
-	real, intent(in) :: v_old(N+1)
-	real, intent(in):: v(N+1)
+	real, intent(in) :: dt, dx, diri_bc, rel_tol, abs_tolerance, weight, source, s1, s2, t1, t2
+	real, intent(in) :: v_old(N+1), v(N+1), b(N+1)
 	real, intent(out) :: v_sol(N+1)
 
 	
@@ -42,7 +41,7 @@ subroutine finite_diff(v, v_old, N, dt, dx, source, diri_bc, rel_tol, abs_tolera
 	return
 end subroutine finite_diff
 
-subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)
+subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)
 !========================================
 !diagonal, sub and super diag elements of jacobian mnatrix J
 ! Returns also F
@@ -51,8 +50,8 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 !jdi = J diagonal; also sub and superdiagonals
 !========================================
     integer, intent(in) :: N
-    real, intent(in) :: delta_t, delta_x
-    real, intent(in) :: v(N+1), v_old(N+1), b(N)
+    real, intent(in) :: delta_t, delta_x, s1, s2, t1, t2
+    real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
     real, intent(out) :: jdi(N+1), jsuperdi(N), jsubdi(N), F(N+1)
 
 	integer :: i
