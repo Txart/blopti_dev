@@ -149,111 +149,111 @@ if plotOpt:
 #%%
 # Check with fipy
 
-import fipy as fp
-from fipy.tools import numerix
-import copy
+# import fipy as fp
+# from fipy.tools import numerix
+# import copy
 
-N = 20 # cheby starts at pos=0
+# N = 20 # cheby starts at pos=0
 
-dx = 2/N
+# dx = 2/N
 
-print('\n >>>>> FiPy started')
+# print('\n >>>>> FiPy started')
 
-f_start_time = time.time()
+# f_start_time = time.time()
 
-mesh = fp.Grid1D(nx=N, dx=dx)
+# mesh = fp.Grid1D(nx=N, dx=dx)
 
-v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=INI_VALUE, hasOld=True)
+# v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=INI_VALUE, hasOld=True)
 
-# BC
-v_fp.constrain(0, where=mesh.facesLeft) # left BC is always Dirichlet
-# v_fp.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight) # right: flux=0
+# # BC
+# v_fp.constrain(0, where=mesh.facesLeft) # left BC is always Dirichlet
+# # v_fp.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight) # right: flux=0
 
 
-def dif_fp(u):
-    b=-4.
-    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * u + numerix.exp(s1 + s2*b))
+# def dif_fp(u):
+#     b=-4.
+#     D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * u + numerix.exp(s1 + s2*b))
     
-    return D
+#     return D
 
-def dif_fp_simple(u):
-    # Simpler diffusivity, for checks
-    return 1.
+# def dif_fp_simple(u):
+#     # Simpler diffusivity, for checks
+#     return 1.
 
-# Boussinesq eq. for theta
-eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=dif_fp(v_fp)) + SOURCE
+# # Boussinesq eq. for theta
+# eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=dif_fp(v_fp)) + SOURCE
 
 
-dt = 1.0
-niter = int(TIMESTEPS/dt)
+# dt = 1.0
+# niter = int(TIMESTEPS/dt)
 
-sol_fp = [0] * (TIMESTEPS+1) # returned quantity
-sol_fp[0] = np.array(v_fp.value)
+# sol_fp = [0] * (TIMESTEPS+1) # returned quantity
+# sol_fp[0] = np.array(v_fp.value)
 
-MAX_SWEEPS = 10000
+# MAX_SWEEPS = 10000
 
-for i in range(TIMESTEPS):
+# for i in range(TIMESTEPS):
     
-    v_fp.updateOld()
+#     v_fp.updateOld()
 
-    res = 0.0
-    for r in range(MAX_SWEEPS):
-        # print(i, res)
-        resOld=res
-        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
-        if abs(res - resOld) < 1e-5: break # it has reached to the solution of the linear system
+#     res = 0.0
+#     for r in range(MAX_SWEEPS):
+#         # print(i, res)
+#         resOld=res
+#         res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
+#         if abs(res - resOld) < 1e-5: break # it has reached to the solution of the linear system
     
-     # Append to list
-    sol_fp[i+1] = copy.copy(v_fp.value[:])
-    print(i, v_fp.value)
+#      # Append to list
+#     sol_fp[i+1] = copy.copy(v_fp.value[:])
+#     print(i, v_fp.value)
 
 
-# for i in range(niter):
-#     eq.solve(var=v_fp, dt=dt)
-#     sol_fp[i+1] = np.array(v_fp.value)
+# # for i in range(niter):
+# #     eq.solve(var=v_fp, dt=dt)
+# #     sol_fp[i+1] = np.array(v_fp.value)
 
-print(f"FiPy time(s) = {time.time() - f_start_time}")  
+# print(f"FiPy time(s) = {time.time() - f_start_time}")  
 
-if plotOpt:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(f'FiPy, dx={dx}, N={N}')
+# if plotOpt:
+#     # Waterfall plot
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111, projection='3d')
+#     ax.set_title(f'FiPy, dx={dx}, N={N}')
     
-    plot_sol_fp = np.array(sol_fp)
-    # plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
-    x_fp = np.linspace(0, 2, num=N)
+#     plot_sol_fp = np.array(sol_fp)
+#     # plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+#     x_fp = np.linspace(0, 2, num=N)
     
-    for j in range(plot_sol_fp.shape[0]):
-        ys = j*np.ones(plot_sol_fp.shape[1])
-        ax.plot(x_fp, ys, plot_sol_fp[j,:])
+#     for j in range(plot_sol_fp.shape[0]):
+#         ys = j*np.ones(plot_sol_fp.shape[1])
+#         ax.plot(x_fp, ys, plot_sol_fp[j,:])
 
     
-#%%
-# Compare fipy vs cheby 
+# #%%
+# # Compare fipy vs cheby 
 
-if plotOpt:
-    # In order to compare, interpolate the chebyshev and evaluate
-    # at fipy mesh centers: x = (0.5, 1.5 , ...)
-    import scipy.interpolate.interpolate as interp
+# if plotOpt:
+#     # In order to compare, interpolate the chebyshev and evaluate
+#     # at fipy mesh centers: x = (0.5, 1.5 , ...)
+#     import scipy.interpolate.interpolate as interp
     
-    cheby_interp = interp.interp1d(x + 1, v_old) # The +1 is to begin at x=0
-    x_fp = mesh.cellCenters.value[0]
-    cheby_interpolated = cheby_interp(x_fp[0:N-1])
+#     cheby_interp = interp.interp1d(x + 1, v_old) # The +1 is to begin at x=0
+#     x_fp = mesh.cellCenters.value[0]
+#     cheby_interpolated = cheby_interp(x_fp[0:N-1])
     
-    # Plot together
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(x_fp, plot_sol_fp[-1], label='fipy')
-    ax.plot(x+1, v_old, label='chebyshev')
-    plt.legend()
+#     # Plot together
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111)
+#     ax.plot(x_fp, plot_sol_fp[-1], label='fipy')
+#     ax.plot(x+1, v_old, label='chebyshev')
+#     plt.legend()
     
-    # Plot of difference
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_title('abs(FiPy-cheby)')
+#     # Plot of difference
+#     fig = plt.figure()
+#     ax = fig.add_subplot(111)
+#     ax.set_title('abs(FiPy-cheby)')
     
-    ax.plot(x_fp[0:N-1], abs(plot_sol_fp[-1][0:N-1] - cheby_interpolated))
+#     ax.plot(x_fp[0:N-1], abs(plot_sol_fp[-1][0:N-1] - cheby_interpolated))
     
     
 #%%
@@ -473,8 +473,8 @@ def to_banded_matrix(a, lower=1, upper=1):
 
 
 """
- Construct Jacobian matrix and F to solve newton method:
-     J x = -F
+  Construct Jacobian matrix and F to solve newton method:
+      J x = -F
 """ 
 def jacobian(v, delta_t, N):
     J = np.zeros(shape=(N+1,N+1)) # Dirichlet BC in the matrix
@@ -579,7 +579,7 @@ def jacobian_and_F_vectorial(v, v_old, delta_t, N, D, D_u, diri_bc, source):
     # Neumann with flux u'(x=N) = C/diffusivity'(u(x=N))
     aN = D(v[N-1])
     F[N] = -e*((D(v[N]) + D(v[N-1]))*v[N-1] -v[N]*(aN + 2*D(v[N]) + D(v[N-1])) +
-                       v[N-1]*(aN + D(v[N]))) - source - v_old[N]/delta_t + v[N]/delta_t
+                        v[N-1]*(aN + D(v[N]))) - source - v_old[N]/delta_t + v[N]/delta_t
     
     
     return J, J_banded, F
@@ -619,7 +619,7 @@ def F_newton(v, source, delta_t, v_old, diri_bc):
     for i,_ in enumerate(F):
         if i>=1 and i<N:
             F[i] = -e*((a(v[i]) + a(v[i-1]))*v[i-1] -v[i]*(a(v[i+1]) + 2*a(v[i]) + a(v[i-1])) +
-                       v[i+1]*(a(v[i+1]) + a(v[i])))
+                        v[i+1]*(a(v[i+1]) + a(v[i])))
     
     F = F - source - v_old/delta_t + v/delta_t
     
@@ -629,7 +629,7 @@ def F_newton(v, source, delta_t, v_old, diri_bc):
     uN = 2*dx*C/a(v[N]) + v[N-1]
     aN = a(uN)
     F[N] = -e*((a(v[N]) + a(v[N-1]))*v[N-1] -v[N]*(aN + 2*a(v[N]) + a(v[N-1])) +
-                       uN*(aN + a(v[N]))) - source - v_old[N]/delta_t + v[N]/delta_t
+                        uN*(aN + a(v[N]))) - source - v_old[N]/delta_t + v[N]/delta_t
     
     return F
 
