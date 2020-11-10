@@ -1,4 +1,5 @@
-subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
+subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, &
+						rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
 ! =====================================================
 ! Finite differences solution algorithm
 ! Uses lapack library solvers
@@ -41,7 +42,8 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 	return
 end subroutine finite_diff
 
-subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)
+subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, &
+							source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)
 !========================================
 !diagonal, sub and super diag elements of jacobian mnatrix J
 ! Returns also F
@@ -71,7 +73,8 @@ subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, source, d
 						
 		F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
 							+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
-                       + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) - source - v_old(i)/delta_t + v(i)/delta_t
+                       + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) &
+					   - source - v_old(i)/delta_t + v(i)/delta_t
 		
 	end do
 
@@ -83,7 +86,8 @@ subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, source, d
 					+ dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
 	jsubdi(N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - dif(v(N), b(N)) &
 					- 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
-	F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) -v(N+1)*(dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + & 
+	F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) & 
+						-v(N+1)*(dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + & 
 						dif(v(N), b(N)))+ v(N)*(dif(v(N), b(N)) + dif(v(N+1), b(N+1)))) &
 						- source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
