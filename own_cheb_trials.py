@@ -153,7 +153,7 @@ import fipy as fp
 from fipy.tools import numerix
 import copy
 
-N = 20 # cheby starts at pos=0
+N = 10 # cheby starts at pos=0
 
 dx = 2/N
 
@@ -641,7 +641,7 @@ c_start_time = time.time()
 rel_tolerance = 1e-5
 abs_tolerance = 1e-5
 
-N = 100
+N = 10
 dt = 1.0 # in days
 dx = 2/N # in m 
 v_ini = np.ones(shape=N+1)*INI_VALUE
