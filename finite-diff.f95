@@ -21,7 +21,8 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 	v_sol = v
 
 	do i=1,max_internal_niter
-		call j_diag_parts_and_f(N, v_sol, v_old, diri_bc, source, dx, dt, d, du, dl, efe)
+		call j_diag_parts_and_f(N, v_sol, v_old, diri_bc, s1, s2, t1, t2, &
+								source, dx, dt, d, du, dl, efe)
 		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
 		if (info<0) then
 			print *, "some parameter  in the matrix has an illegal value"
