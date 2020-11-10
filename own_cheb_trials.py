@@ -887,8 +887,8 @@ import fdallin # own fortran functions
 c_start_time = time.time()
 
 
-rel_tolerance = 1e-9
-abs_tolerance = 1e-9
+rel_tolerance = 1e-5
+abs_tolerance = 1e-5
 
 N = 10
 dt = 1.0 # in days
