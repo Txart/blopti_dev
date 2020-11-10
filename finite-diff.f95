@@ -52,7 +52,7 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 !========================================
     integer, intent(in) :: N
     real, intent(in) :: delta_t, delta_x
-    real, intent(in) :: v(N+1), v_old(N+1)
+    real, intent(in) :: v(N+1), v_old(N+1), b(N)
     real, intent(out) :: jdi(N+1), jsuperdi(N), jsubdi(N), F(N+1)
 
 	integer :: i
@@ -62,12 +62,17 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
     e = 1/(2*delta_x**2)
 	
 	do i=2,N
-		jsubdi(i) = e*(-dif_prime(v(i-1))*v(i-1) - dif(v(i)) - dif(v(i-1)) + dif_prime(v(i-1))*v(i))
-		jdi(i) = e*(-dif_prime(v(i))*v(i-1) + 2*dif_prime(v(i))*v(i) - dif_prime(v(i))*v(i+1) + dif(v(i+1)) & 
-                        + 2*dif(v(i)) + dif(v(i-1))) + 1/delta_t
-		jsuperdi = e*(dif_prime(v(i+1))*v(i) - dif(v(i+1)) - dif(v(i)) - dif_prime(v(i+1))*v(i+1))
-		F(i) = -e*((dif(v(i)) + dif(v(i-1)))*v(i-1) -v(i)*(dif(v(i+1)) + 2*dif(v(i)) + dif(v(i-1))) &
-                       + v(i+1)*(dif(v(i+1)) + dif(v(i)))) - source - v_old(i)/delta_t + v(i)/delta_t
+		jsubdi(i) = e*(-dif_prime(v(i-1), b(i-1))*v(i-1) - dif(v(i), b(i)) - dif(v(i-1), b(i-1)) + & 
+						dif_prime(v(i-1), b(i-1))*v(i))
+		jdi(i) = e*(-dif_prime(v(i), b(i))*v(i-1) + 2*dif_prime(v(i), b(i))*v(i) - & 
+					dif_prime(v(i), b(i))*v(i+1) + dif(v(i+1), b(i+1)) & 
+                        + 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) + 1/delta_t
+		jsuperdi = e*(dif_prime(v(i+1), b(i+1))*v(i) - dif(v(i+1), b(i+1)) - dif(v(i), b(i)) &
+						- dif_prime(v(i+1), b(i+1))*v(i+1))
+						
+		F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
+							+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
+                       + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) - source - v_old(i)/delta_t + v(i)/delta_t
 		
 	end do
 
@@ -75,15 +80,38 @@ subroutine j_diag_parts_and_f(N, v, v_old, diri_bc, source, delta_x, delta_t, jd
 	jdi(1) =1
 	F(1) = diri_bc
 	!Neuman BC
-	jdi(N+1) = e*(-dif_prime(v(N))*v(N) + 2*dif_prime(v(N+1))*v(N+1) + dif(v(N)) + 2*dif(v(N+1)) + dif(v(N))) + 1/delta_t
-	jsubdi(N) = e*(-dif_prime(v(N))*v(N) + dif_prime(v(N))*v(N+1) - dif(v(N)) - 2*dif(v(N+1)) - dif(v(N))) &
-					-delta_x*e*(dif_prime(v(N+1)))
-	F(N+1) = -e*((dif(v(N+1)) + dif(v(N)))*v(N) -v(N+1)*(dif(v(N)) + 2*dif(v(N+1)) + dif(v(N))) &
-                      + v(N)*(dif(v(N)) + dif(v(N+1)))) - source - v_old(N+1)/delta_t + v(N+1)/delta_t
+	jdi(N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &
+					+ dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
+	jsubdi(N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - dif(v(N), b(N)) &
+					- 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
+	F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) -v(N+1)*(dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + & 
+						dif(v(N), b(N)))+ v(N)*(dif(v(N), b(N)) + dif(v(N+1), b(N+1)))) &
+						- source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
-	return
+
+	contains ! Add subroutines in here in order to share parameters
+		real function dif(x,bi)
+			real, intent(in) :: x, bi
+			real :: A
+			
+			! notation
+			A = s2 * exp(-s1)*x + exp(s2*bi)
+
+			dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
+		end function
+
+		real function dif_prime(x, bi)
+			real, intent(in) :: x, bi
+			real :: A
+			
+			! notation
+			A = s2 * exp(-s1)*x + exp(s2*bi)
+
+			dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
+		end function
 
 end subroutine j_diag_parts_and_f
+
 
 ! subroutine only_f(N, v, v_old, delta_t, delta_x, diri_bc, source, F): ! NOT IN USE RIGHT NOW
 ! !==============================================================
@@ -111,81 +139,81 @@ end subroutine j_diag_parts_and_f
 
 
 
-subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, source, J, F)
-! =====================================================
-! Sets up Jacobian matrix for Newton-Rhapson method
-! solution of the Backward Euler implicit finite diff
-! 1D Bousinessq eq.
-! Dirichlet in 0th position, no flux neumann in Nth position
-! DUE TO RESTRICTIONS IN F2PY, THE SIZE OF THE OUTPUT ARRAY J
-! CANNOT BE DYNAMICALLY ALLOCATED. I USE AN ASUMED ALLOCATION
-! =====================================================
+! subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, source, J, F)
+! ! =====================================================
+! ! Sets up Jacobian matrix for Newton-Rhapson method
+! ! solution of the Backward Euler implicit finite diff
+! ! 1D Bousinessq eq.
+! ! Dirichlet in 0th position, no flux neumann in Nth position
+! ! DUE TO RESTRICTIONS IN F2PY, THE SIZE OF THE OUTPUT ARRAY J
+! ! CANNOT BE DYNAMICALLY ALLOCATED. I USE AN ASUMED ALLOCATION
+! ! =====================================================
     
-    integer, intent(in) :: N
-    real, intent(in) :: delta_t, delta_x, diri_bc, source, s1, s2, t1, t2
-    real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
-    real, intent(out) :: J(N+1,N+1), F(N+1)
+    ! integer, intent(in) :: N
+    ! real, intent(in) :: delta_t, delta_x, diri_bc, source, s1, s2, t1, t2
+    ! real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
+    ! real, intent(out) :: J(N+1,N+1), F(N+1)
 
-    integer :: i
-    real :: e	
+    ! integer :: i
+    ! real :: e	
 
-    ! notation
-    e = 1/(2*delta_x**2)
+    ! ! notation
+    ! e = 1/(2*delta_x**2)
 
-    do i=2,N
-        J(i,i-1) = e*(-dif_prime(v(i-1), b(i-1))*v(i-1) - dif(v(i), b(i)) - dif(v(i-1), b(i-1)) + & 
-						dif_prime(v(i-1), b(i-1))*v(i))
+    ! do i=2,N
+        ! J(i,i-1) = e*(-dif_prime(v(i-1), b(i-1))*v(i-1) - dif(v(i), b(i)) - dif(v(i-1), b(i-1)) + & 
+						! dif_prime(v(i-1), b(i-1))*v(i))
 
-        J(i,i) = e*(-dif_prime(v(i), b(i))*v(i-1) + 2*dif_prime(v(i), b(i))*v(i) - & 
-					dif_prime(v(i), b(i))*v(i+1) + dif(v(i+1), b(i+1)) & 
-                        + 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) + 1/delta_t
+        ! J(i,i) = e*(-dif_prime(v(i), b(i))*v(i-1) + 2*dif_prime(v(i), b(i))*v(i) - & 
+					! dif_prime(v(i), b(i))*v(i+1) + dif(v(i+1), b(i+1)) & 
+                        ! + 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) + 1/delta_t
 
-        J(i,i+1) = e*(dif_prime(v(i+1), b(i+1))*v(i) - dif(v(i+1), b(i+1)) - dif(v(i), b(i)) &
-						- dif_prime(v(i+1), b(i+1))*v(i+1))
+        ! J(i,i+1) = e*(dif_prime(v(i+1), b(i+1))*v(i) - dif(v(i+1), b(i+1)) - dif(v(i), b(i)) &
+						! - dif_prime(v(i+1), b(i+1))*v(i+1))
 
-        ! F
-        F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
-							+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
-                       + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) - source - v_old(i)/delta_t + v(i)/delta_t
+        ! ! F
+        ! F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
+							! + 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
+                       ! + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) - source - v_old(i)/delta_t + v(i)/delta_t
 
-    end do
+    ! end do
 
-    ! BC
-    ! Diri in x=0
-    J(1,1) = 1
-    F(1) = diri_bc
-    ! Neumann with diffusivity(u(L))*u'(L)=0 in x=N
-    aL = dif(v(N), b(N))
-    J(N+1,N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &
-					+ aL + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
-    J(N+1,N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - aL &
-					- 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
-    F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) -v(N+1)*(aL + 2*dif(v(N+1), b(N+1)) + & 
-						dif(v(N), b(N)))+ v(N)*(aL + dif(v(N+1), b(N+1)))) &
-						- source - v_old(N+1)/delta_t + v(N+1)/delta_t
+    ! ! BC
+    ! ! Diri in x=0
+    ! J(1,1) = 1
+    ! F(1) = diri_bc
+    ! ! Neumann with diffusivity(u(L))*u'(L)=0 in x=N
+    ! aL = dif(v(N), b(N))
+    ! J(N+1,N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &
+					! + aL + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
+    ! J(N+1,N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - aL &
+					! - 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
+    ! F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) -v(N+1)*(aL + 2*dif(v(N+1), b(N+1)) + & 
+						! dif(v(N), b(N)))+ v(N)*(aL + dif(v(N+1), b(N+1)))) &
+						! - source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
-	contains ! Add subroutines in here in order to share parameters
-		real function dif(x,bi)
-			real, intent(in) :: x, bi
-			real :: A
+	! contains ! Add subroutines in here in order to share parameters
+		! real function dif(x,bi)
+			! real, intent(in) :: x, bi
+			! real :: A
 			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*bi)
+			! ! notation
+			! A = s2 * exp(-s1)*x + exp(s2*bi)
 
-			dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
-		end function
+			! dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
+		! end function
 
-		real function dif_prime(x, bi)
-			real, intent(in) :: x, bi
-			real :: A
+		! real function dif_prime(x, bi)
+			! real, intent(in) :: x, bi
+			! real :: A
 			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*bi)
+			! ! notation
+			! A = s2 * exp(-s1)*x + exp(s2*bi)
 
-			dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
-		end function
+			! dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
+		! end function
 
-end subroutine j_and_f
+! end subroutine j_and_f
 
 ! function dif(x) result(y)
     ! real, intent(in) :: x
