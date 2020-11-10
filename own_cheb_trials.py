@@ -12,7 +12,7 @@ import math
 import time
 
 #%%
-plotOpt = False
+plotOpt = True
 
 #%%
 """
@@ -153,7 +153,7 @@ import fipy as fp
 from fipy.tools import numerix
 import copy
 
-N = 10 # cheby starts at pos=0
+N = 20 # cheby starts at pos=0
 
 dx = 2/N
 
@@ -190,7 +190,7 @@ niter = int(TIMESTEPS/dt)
 sol_fp = [0] * (TIMESTEPS+1) # returned quantity
 sol_fp[0] = np.array(v_fp.value)
 
-MAX_SWEEPS = 1000
+MAX_SWEEPS = 10000
 
 for i in range(TIMESTEPS):
     
@@ -641,9 +641,9 @@ c_start_time = time.time()
 rel_tolerance = 1e-5
 abs_tolerance = 1e-5
 
-N = 10
+N = 100
 dt = 1.0 # in days
-dx = 0.2 # in m 
+dx = 2/N # in m 
 v_ini = np.ones(shape=N+1)*INI_VALUE
 
 # BC
@@ -679,7 +679,7 @@ v_plot = [0]*(TIMESTEPS+1)
 v_plot[0] = v_ini[:]
 
 
-MAX_INTERNAL_NITER = 1000 # max niters to solve nonlinear algebraic eq of Newton's method
+MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 for t in range(TIMESTEPS):
     # Update source
