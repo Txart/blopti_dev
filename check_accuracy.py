@@ -82,10 +82,10 @@ def solve_with_given_N(N, params):
 # Run accuracy tests
 Ns = [10, 25]
 
-NITER_PER_N = 10
-rnd_params = np.random.rand(NITER_PER_N,4) * 2
+N_PARAMS = 10
+rnd_params = np.random.rand(N_PARAMS,4) * 2
 
-v_sols = [[0]]*NITER_PER_N
+v_sols = [[0]]*N_PARAMS
 
 for nN, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
@@ -104,7 +104,7 @@ for nparam, params in enumerate(rnd_params):
     plt.figure(nparam)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N+1)
-        plt.plot(x, v_sols[nN][nparam], color=cmaplist[nN])     
+        plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN])     
         plt.title(params)
 
     plt.savefig(f'acc_plots_{params}.png')
