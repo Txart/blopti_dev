@@ -3,6 +3,8 @@ module fin_diff ! lapack subroutines need this module structure
 	implicit none
 	
 	private :: j_diag_parts_and_f ! cannot be called from python
+	private :: sgttrf
+	private :: sgttrs
 	public :: finite_diff ! can be called from python
 	
 	contains
@@ -13,7 +15,7 @@ module fin_diff ! lapack subroutines need this module structure
 		! Finite differences solution algorithm
 		! Uses lapack library solvers
 		! =====================================================
-			
+			implicit none
 			
 			integer, intent(in) :: max_internal_niter, N
 			real, intent(in) :: dt, dx, diri_bc, rel_tol, abs_tolerance, weight, source, s1, s2, t1, t2
@@ -66,6 +68,8 @@ module fin_diff ! lapack subroutines need this module structure
 		! solvers. Effectively, same as J and F below.
 		!jdi = J diagonal; also sub and superdiagonals
 		!========================================
+			implicit none
+		
 			integer, intent(in) :: N
 			real, intent(in) :: delta_t, delta_x, s1, s2, t1, t2, diri_bc, source
 			real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
