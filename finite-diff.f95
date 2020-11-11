@@ -25,12 +25,14 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 								source, dx, dt, d, du, dl, efe)
 		print *, "working 2"
 		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
+		print *, "working 3"
 		! if (info<0) then
 			! print *, "some parameter  in the matrix has an illegal value"
 		! else if (info>0)
 			! print *, "U is exactly singular"
 		eps_x = -efe ! eps_x gets rewritten with the solution
 		call sgttrs('N', N+1, N+1, dl, d, du, du2, ipiv, eps_x, N+1, info) ! solve with Lapack
+		print *, "working4"
 		v_sol = v_sol + weight*eps_x
 		
         ! stopping criterion
@@ -39,6 +41,7 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 			print *, 'Solution of the Newton linear system in {i} iterations'
 			exit
 		end if
+	print *, "working 5"
 	end do
 	
 	return
