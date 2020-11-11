@@ -80,7 +80,7 @@ def solve_with_given_N(N, params):
 
 #%%
 # Run accuracy tests
-Ns = [10, 25, 50, 100 ,200, 500]
+Ns = [10, 25]
 
 NITER_PER_N = 10
 rnd_params = np.random.rand(NITER_PER_N,4) * 2
