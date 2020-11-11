@@ -100,7 +100,7 @@ cmap = plt.cm.Pastel1
 cmaplist = [cmap(int(i)) for i in np.linspace(0,255,len(Ns))]
 
 for nparam, params in enumerate(rnd_params):
-    plt.figure(nparamfigsize=(8, 6), dpi=400)
+    plt.figure(nparam, figsize=(8, 6), dpi=400)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N+1)
         plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))     
