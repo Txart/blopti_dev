@@ -103,7 +103,7 @@ for nparam, params in enumerate(rnd_params):
     v_sols[nparam].pop(0)
     plt.figure(nparam)
     for nN, N in enumerate(Ns):
-        x = np.linspace(0,2,N)
+        x = np.linspace(0,2,N+1)
         plt.plot(x, v_sols[nN][nparam], color=cmaplist[nN])     
         plt.title(params)
 
