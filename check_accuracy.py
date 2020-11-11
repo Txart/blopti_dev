@@ -96,7 +96,7 @@ for nN, N in enumerate(Ns):
 #%%
 # Plot
         
-cmap = plt.cm.Pastel1
+cmap = plt.cm.Accent
 cmaplist = [cmap(int(i)) for i in np.linspace(0,255,len(Ns))]
 
 for nparam, params in enumerate(rnd_params):
