@@ -880,6 +880,7 @@ if plotOpt:
     
     
 #%% FORTRAN BUSINESS ALL IN
+raise NotImplementedError
 import fdallin # own fortran functions
 
 # TODO: USE np.asfortranarray()  before calling to fortran FUNCTIONS IN THE FUTURE
