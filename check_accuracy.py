@@ -100,7 +100,7 @@ cmap = plt.cm.Pastel1
 cmaplist = [cmap(int(i)) for i in np.linspace(0,255,len(Ns))]
 
 for nparam, params in enumerate(rnd_params):
-    v_sols[nparam].pop[0]
+    v_sols[nparam].pop(0)
     plt.figure(nparam)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N)
