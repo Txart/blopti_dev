@@ -937,7 +937,7 @@ for t in range(TIMESTEPS):
 
     print('code is working up to here')
     # call to fortran function using lapack and everything.
-    v = fdallin.finite_diff(v=v, v_old=v_old, b=b, n=N, dt=dt, dx=dx, source=source, s1=s1, s2=s2, t1=t1, t2=t2,
+    v = fdallin.fin_diff.finite_diff(v=v, v_old=v_old, b=b, n=N, dt=dt, dx=dx, source=source, s1=s1, s2=s2, t1=t1, t2=t2,
                         diri_bc=DIRI, rel_tol=rel_tol, abs_tolerance=abs_tolerance,
                         weight=weight, max_internal_niter=MAX_INTERNAL_NITER)
     
