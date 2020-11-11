@@ -103,9 +103,10 @@ for nparam, params in enumerate(rnd_params):
     plt.figure(nparam)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N+1)
-        plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN])     
-        plt.title(params)
-
+        plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))     
+    
+    plt.title(params)
+    plt.legend()
     plt.savefig(f'acc_plots/{nparam}.png')
     
 
