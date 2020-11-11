@@ -97,7 +97,7 @@ for nN, N in enumerate(Ns):
 # Plot
         
 cmap = plt.cm.Accent
-cmaplist = [cmap(int(i)) for i in np.linspace(0,10,len(Ns))]
+cmaplist = [cmap(int(i)) for i in range(0, len(Ns))]
 
 for nparam, params in enumerate(rnd_params):
     plt.figure(nparam, figsize=(8, 6), dpi=400)
