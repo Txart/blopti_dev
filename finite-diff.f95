@@ -1,126 +1,136 @@
-subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, &
-						rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
-! =====================================================
-! Finite differences solution algorithm
-! Uses lapack library solvers
-! =====================================================
-	
-	
-	integer, intent(in) :: max_internal_niter, N
-	real, intent(in) :: dt, dx, diri_bc, rel_tol, abs_tolerance, weight, source, s1, s2, t1, t2
-	real, intent(in) :: v_old(N+1), v(N+1), b(N+1)
-	real, intent(out) :: v_sol(N+1)
+module fin_diff ! lapack subroutines need this module structure
 
+	implicit none
 	
-	integer :: i, info, ipiv(N+1)
-	real :: residue
-	real :: d(N+1), dl(N), du(N), du2(N-1), eps_x(N+1), efe(N+1)
+	private :: j_diag_parts_and_f ! cannot be called from python
+	public :: finite_diff ! can be called from python
 	
-	du2 = 0.0
-
-	v_sol = v
-	print *, "working 1"
-	do i=1,max_internal_niter
-		call j_diag_parts_and_f(N, v_sol, v_old, b, diri_bc, s1, s2, t1, t2, &
-								source, dx, dt, d, du, dl, efe)
-		print *, "working 2"
-		call sgttrf(N=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, INFO=info) ! LU decomposition needed for solving
-		print *, "working 3"
-		! if (info<0) then
-			! print *, "some parameter  in the matrix has an illegal value"
-		! else if (info>0)
-			! print *, "U is exactly singular"
-		eps_x = -efe ! eps_x gets rewritten with the solution
-		call sgttrs(TRANS='N', N=N+1, NRHS=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, &
-					B=eps_x, LDB=1, INFO=info) ! solve with Lapack
-		print *, "working4"
-		v_sol = v_sol + weight*eps_x
-		
-        ! stopping criterion
-        residue =  sqrt ( sum ( efe*efe )) - rel_tol
-        if (residue < abs_tolerance) then
-			print *, 'Solution of the Newton linear system in {i} iterations'
-			exit
-		end if
-	print *, "working 5"
-	end do
+	contains
 	
-	return
-end subroutine finite_diff
+		subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, &
+								rel_tol, abs_tolerance, weight, max_internal_niter, v_sol)
+		! =====================================================
+		! Finite differences solution algorithm
+		! Uses lapack library solvers
+		! =====================================================
+			
+			
+			integer, intent(in) :: max_internal_niter, N
+			real, intent(in) :: dt, dx, diri_bc, rel_tol, abs_tolerance, weight, source, s1, s2, t1, t2
+			real, intent(in) :: v_old(N+1), v(N+1), b(N+1)
+			real, intent(out) :: v_sol(N+1)
 
-subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, &
-							source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)
-!========================================
-!diagonal, sub and super diag elements of jacobian mnatrix J
-! Returns also F
-! Needed to solve using LAPACK tridiagonal
-! solvers. Effectively, same as J and F below.
-!jdi = J diagonal; also sub and superdiagonals
-!========================================
-    integer, intent(in) :: N
-    real, intent(in) :: delta_t, delta_x, s1, s2, t1, t2
-    real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
-    real, intent(out) :: jdi(N+1), jsuperdi(N), jsubdi(N), F(N+1)
+			
+			integer :: i, info, ipiv(N+1)
+			real :: residue
+			real :: d(N+1), dl(N), du(N), du2(N-1), eps_x(N+1), efe(N+1)
+			
+			du2 = 0.0
 
-	integer :: i
-	real :: e
-	
-	! notation
-    e = 1/(2*delta_x**2)
-	
-	do i=2,N
-		jsubdi(i) = e*(-dif_prime(v(i-1), b(i-1))*v(i-1) - dif(v(i), b(i)) - dif(v(i-1), b(i-1)) + & 
-						dif_prime(v(i-1), b(i-1))*v(i))
-		jdi(i) = e*(-dif_prime(v(i), b(i))*v(i-1) + 2*dif_prime(v(i), b(i))*v(i) - & 
-					dif_prime(v(i), b(i))*v(i+1) + dif(v(i+1), b(i+1)) & 
-                        + 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) + 1/delta_t
-		jsuperdi = e*(dif_prime(v(i+1), b(i+1))*v(i) - dif(v(i+1), b(i+1)) - dif(v(i), b(i)) &
-						- dif_prime(v(i+1), b(i+1))*v(i+1))
-						
-		F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
-							+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
-                       + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) &
-					   - source - v_old(i)/delta_t + v(i)/delta_t
-		
-	end do
+			v_sol = v
+			print *, "working 1"
+			do i=1,max_internal_niter
+				call j_diag_parts_and_f(N, v_sol, v_old, b, diri_bc, s1, s2, t1, t2, &
+										source, dx, dt, d, du, dl, efe)
+				print *, "working 2"
+				call sgttrf(N=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, INFO=info) ! LU decomposition needed for solving
+				print *, "working 3"
+				! if (info<0) then
+					! print *, "some parameter  in the matrix has an illegal value"
+				! else if (info>0)
+					! print *, "U is exactly singular"
+				eps_x = -efe ! eps_x gets rewritten with the solution
+				call sgttrs(TRANS='N', N=N+1, NRHS=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, &
+							B=eps_x, LDB=1, INFO=info) ! solve with Lapack
+				print *, "working4"
+				v_sol = v_sol + weight*eps_x
+				
+				! stopping criterion
+				residue =  sqrt ( sum ( efe*efe )) - rel_tol
+				if (residue < abs_tolerance) then
+					print *, 'Solution of the Newton linear system in {i} iterations'
+					exit
+				end if
+			print *, "working 5"
+			end do
+			
+			return
+		end subroutine finite_diff
 
-	! diri BC in x=0
-	jdi(1) =1
-	F(1) = diri_bc
-	!Neuman BC
-	jdi(N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &
-					+ dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
-	jsubdi(N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - dif(v(N), b(N)) &
-					- 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
-	F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) & 
-						-v(N+1)*(dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + & 
-						dif(v(N), b(N)))+ v(N)*(dif(v(N), b(N)) + dif(v(N+1), b(N+1)))) &
-						- source - v_old(N+1)/delta_t + v(N+1)/delta_t
+		subroutine j_diag_parts_and_f(N, v, v_old, b, diri_bc, s1, s2, t1, t2, &
+									source, delta_x, delta_t, jdi, jsuperdi, jsubdi, F)
+		!========================================
+		!diagonal, sub and super diag elements of jacobian mnatrix J
+		! Returns also F
+		! Needed to solve using LAPACK tridiagonal
+		! solvers. Effectively, same as J and F below.
+		!jdi = J diagonal; also sub and superdiagonals
+		!========================================
+			integer, intent(in) :: N
+			real, intent(in) :: delta_t, delta_x, s1, s2, t1, t2
+			real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
+			real, intent(out) :: jdi(N+1), jsuperdi(N), jsubdi(N), F(N+1)
 
-
-	contains ! Add subroutines in here in order to share parameters
-		real function dif(x,bi)
-			real, intent(in) :: x, bi
-			real :: A
+			integer :: i
+			real :: e
 			
 			! notation
-			A = s2 * exp(-s1)*x + exp(s2*bi)
-
-			dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
-		end function
-
-		real function dif_prime(x, bi)
-			real, intent(in) :: x, bi
-			real :: A
+			e = 1/(2*delta_x**2)
 			
-			! notation
-			A = s2 * exp(-s1)*x + exp(s2*bi)
+			do i=2,N
+				jsubdi(i) = e*(-dif_prime(v(i-1), b(i-1))*v(i-1) - dif(v(i), b(i)) - dif(v(i-1), b(i-1)) + & 
+								dif_prime(v(i-1), b(i-1))*v(i))
+				jdi(i) = e*(-dif_prime(v(i), b(i))*v(i-1) + 2*dif_prime(v(i), b(i))*v(i) - & 
+							dif_prime(v(i), b(i))*v(i+1) + dif(v(i+1), b(i+1)) & 
+								+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) + 1/delta_t
+				jsuperdi = e*(dif_prime(v(i+1), b(i+1))*v(i) - dif(v(i+1), b(i+1)) - dif(v(i), b(i)) &
+								- dif_prime(v(i+1), b(i+1))*v(i+1))
+								
+				F(i) = -e*((dif(v(i), b(i)) + dif(v(i-1), b(i-1)))*v(i-1) -v(i)*(dif(v(i+1), b(i+1)) & 
+									+ 2*dif(v(i), b(i)) + dif(v(i-1), b(i-1))) &
+							   + v(i+1)*(dif(v(i+1), b(i+1)) + dif(v(i), b(i)))) &
+							   - source - v_old(i)/delta_t + v(i)/delta_t
+				
+			end do
 
-			dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
-		end function
+			! diri BC in x=0
+			jdi(1) =1
+			F(1) = diri_bc
+			!Neuman BC
+			jdi(N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &
+							+ dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + dif(v(N), b(N))) + 1/delta_t
+			jsubdi(N) = e*(-dif_prime(v(N), b(N))*v(N) + dif_prime(v(N), b(N))*v(N+1) - dif(v(N), b(N)) &
+							- 2*dif(v(N+1), b(N+1)) - dif(v(N), b(N))) -delta_x*e*(dif_prime(v(N+1), b(N+1)))
+			F(N+1) = -e*((dif(v(N+1), b(N+1)) + dif(v(N), b(N)))*v(N) & 
+								-v(N+1)*(dif(v(N), b(N)) + 2*dif(v(N+1), b(N+1)) + & 
+								dif(v(N), b(N)))+ v(N)*(dif(v(N), b(N)) + dif(v(N+1), b(N+1)))) &
+								- source - v_old(N+1)/delta_t + v(N+1)/delta_t
 
-end subroutine j_diag_parts_and_f
 
+			contains ! Add subroutines in here in order to share parameters
+				real function dif(x,bi)
+					real, intent(in) :: x, bi
+					real :: A
+					
+					! notation
+					A = s2 * exp(-s1)*x + exp(s2*bi)
+
+					dif = exp(t1-s1)/t2 * (A**(t2/s2) - exp(t2*bi))/A
+				end function
+
+				real function dif_prime(x, bi)
+					real, intent(in) :: x, bi
+					real :: A
+					
+					! notation
+					A = s2 * exp(-s1)*x + exp(s2*bi)
+
+					dif_prime = exp(t1-2*s1)*s2/(t2*A**2) * (A**(t2/s2)*(t2/s2-1) + exp(t2*bi))
+				end function
+
+		end subroutine j_diag_parts_and_f
+
+end module fin_diff
 
 ! subroutine only_f(N, v, v_old, delta_t, delta_x, diri_bc, source, F): ! NOT IN USE RIGHT NOW
 ! !==============================================================
