@@ -935,7 +935,7 @@ for t in range(TIMESTEPS):
     _, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE) 
     rel_tol = rel_tolerance * np.linalg.norm(F)
 
-    print('model is working up to here')
+    print('code is working up to here')
     # call to fortran function using lapack and everything.
     v = fdallin.finite_diff(v=v, v_old=v_old, b=b, n=N, dt=dt, dx=dx, source=source, s1=s1, s2=s2, t1=t1, t2=t2,
                         diri_bc=DIRI, rel_tol=rel_tol, abs_tolerance=abs_tolerance,

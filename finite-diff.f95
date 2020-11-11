@@ -13,7 +13,7 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 
 	
 	integer :: i, info, ipiv(N+1)
-	real :: residue, normF
+	real :: residue
 	real :: d(N+1), dl(N), du(N), du2(N-1), eps_x(N+1), efe(N+1)
 	
 	du2 = 0.0
@@ -21,7 +21,7 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 	v_sol = v
 
 	do i=1,max_internal_niter
-		call j_diag_parts_and_f(N, v_sol, v_old, diri_bc, s1, s2, t1, t2, &
+		call j_diag_parts_and_f(N, v_sol, v_old, b, diri_bc, s1, s2, t1, t2, &
 								source, dx, dt, d, du, dl, efe)
 		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
 		! if (info<0) then
@@ -33,7 +33,7 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 		v_sol = v_sol + weight*eps_x
 		
         ! stopping criterion
-        residue =  sqrt ( sum ( efe(:N+1)*efe(:N+1) )) - rel_tol
+        residue =  sqrt ( sum ( efe*efe )) - rel_tol
         if (residue < abs_tolerance) then
 			print *, 'Solution of the Newton linear system in {i} iterations'
 			exit
