@@ -4,7 +4,7 @@
 python module fd ! in 
     interface  ! in :fd
         subroutine j_and_f(n,v,v_old,b,delta_t,delta_x,diri_bc,s1,s2,t1,t2,source,j,f) ! in :fd:fd-new.f95
-            integer,intent(in) :: n
+            integer, intent(in) :: n
             real dimension(n + 1),intent(in), depend(n) :: v
             real dimension(n + 1),intent(in),depend(n) :: v_old
             real dimension(n + 1),intent(in),depend(n) :: b
