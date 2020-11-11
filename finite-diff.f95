@@ -3,8 +3,8 @@ module fin_diff ! lapack subroutines need this module structure
 	implicit none
 	
 	private :: j_diag_parts_and_f ! cannot be called from python
-	private :: sgttrf
-	private :: sgttrs
+	!private :: sgttrf
+	!private :: sgttrs
 	public :: finite_diff ! can be called from python
 	
 	contains
