@@ -29,7 +29,7 @@ def solve_with_given_N(N, params):
     abs_tolerance = 1e-5
     
     # Relaxation parameter
-    weight = 0.1
+    weight = 1/N
     
     dt = 1.0 # in days
     v_ini = np.ones(shape=N+1)*INI_VALUE
@@ -43,9 +43,7 @@ def solve_with_given_N(N, params):
     
     s1 = params[0]; s2 = params[1]
     t1 = params[2]; t2 = params[3]
-    
-    
-    print(f'\n >>>>> Finite diff FORTRAN started, {N}')
+
     
     c_start_time = time.time()
 
@@ -75,8 +73,8 @@ def solve_with_given_N(N, params):
     
     v_old = v[:]
         
-    
-    print(f"Finite diff FORTRAN, {N} time = {time.time() - c_start_time}") 
+    time_spent = time.time() - c_start_time
+    print(f"Finite diff FORTRAN, {N} time = {time_spent}") 
     
     return v
 
