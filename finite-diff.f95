@@ -19,10 +19,11 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 	du2 = 0.0
 
 	v_sol = v
-
+	print *, "working 1"
 	do i=1,max_internal_niter
 		call j_diag_parts_and_f(N, v_sol, v_old, b, diri_bc, s1, s2, t1, t2, &
 								source, dx, dt, d, du, dl, efe)
+		print *, "working 2"
 		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
 		! if (info<0) then
 			! print *, "some parameter  in the matrix has an illegal value"
