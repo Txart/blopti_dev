@@ -31,7 +31,7 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 		! else if (info>0)
 			! print *, "U is exactly singular"
 		eps_x = -efe ! eps_x gets rewritten with the solution
-		call sgttrs(TRANS='N', N=N+1, N=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, &
+		call sgttrs(TRANS='N', N=N+1, NRHS=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, &
 					B=eps_x, LDB=1, INFO=info) ! solve with Lapack
 		print *, "working4"
 		v_sol = v_sol + weight*eps_x
