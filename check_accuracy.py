@@ -85,7 +85,7 @@ Ns = [10, 25]
 N_PARAMS = 10
 rnd_params = np.random.rand(N_PARAMS,4) * 2
 
-v_sols = [[0]]*N_PARAMS
+v_sols = [[] for i in range(N_PARAMS)]
 
 for nN, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
@@ -100,14 +100,13 @@ cmap = plt.cm.Pastel1
 cmaplist = [cmap(int(i)) for i in np.linspace(0,255,len(Ns))]
 
 for nparam, params in enumerate(rnd_params):
-    v_sols[nparam].pop(0)
     plt.figure(nparam)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N+1)
         plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN])     
         plt.title(params)
 
-    plt.savefig(f'acc_plots_{params}.png')
+    plt.savefig(f'acc_plots/{nparam}.png')
     
 
     
