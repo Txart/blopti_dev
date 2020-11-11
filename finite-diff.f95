@@ -67,7 +67,7 @@ module fin_diff ! lapack subroutines need this module structure
 		!jdi = J diagonal; also sub and superdiagonals
 		!========================================
 			integer, intent(in) :: N
-			real, intent(in) :: delta_t, delta_x, s1, s2, t1, t2
+			real, intent(in) :: delta_t, delta_x, s1, s2, t1, t2, diri_bc, source
 			real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
 			real, intent(out) :: jdi(N+1), jsuperdi(N), jsubdi(N), F(N+1)
 
