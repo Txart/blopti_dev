@@ -21,17 +21,18 @@ subroutine finite_diff(v, v_old, b, N, dt, dx, source, diri_bc, s1, s2, t1, t2, 
 	v_sol = v
 	print *, "working 1"
 	do i=1,max_internal_niter
-		call j_diag_parts_and_f(N, v_sol, v_old, b, diri_bc, s1, s2, t1, t2, &
+		call j_diag_parts_and_f(N v_sol, v_old, b, diri_bc, s1, s2, t1, t2, &
 								source, dx, dt, d, du, dl, efe)
 		print *, "working 2"
-		call sgttrf(N+1, dl, d, du, ipiv, info) ! LU decomposition needed for solving
+		call sgttrf(N=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, info) ! LU decomposition needed for solving
 		print *, "working 3"
 		! if (info<0) then
 			! print *, "some parameter  in the matrix has an illegal value"
 		! else if (info>0)
 			! print *, "U is exactly singular"
 		eps_x = -efe ! eps_x gets rewritten with the solution
-		call sgttrs('N', N+1, N+1, dl, d, du, du2, ipiv, eps_x, N+1, info) ! solve with Lapack
+		call sgttrs(TRANS='N', N=N+1, N=N+1, DL=dl, D=d, DU=du, DU2=du2, IPIV=ipiv, &
+					B=eps_x, LDB=1, INFO=info) ! solve with Lapack
 		print *, "working4"
 		v_sol = v_sol + weight*eps_x
 		
