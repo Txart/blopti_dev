@@ -85,9 +85,6 @@ Ns = [10, 25]
 NITER_PER_N = 10
 rnd_params = np.random.rand(NITER_PER_N,4) * 2
 
-cmap = plt.cm.Pastel1
-cmaplist = [cmap(int(i)) for i in np.linspace(0,255,len(Ns))]
-
 v_sols = [[0]]*NITER_PER_N
 
 for nN, N in enumerate(Ns):
@@ -98,8 +95,12 @@ for nN, N in enumerate(Ns):
 
 #%%
 # Plot
+        
+cmap = plt.cm.Pastel1
+cmaplist = [cmap(int(i)) for i in np.linspace(0,255,len(Ns))]
 
-for nparam, params in enumerate(rnd_params):    
+for nparam, params in enumerate(rnd_params):
+    v_sols[nparam].pop[0]
     plt.figure(nparam)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N)
