@@ -62,9 +62,53 @@ def solve_with_given_N(N, params):
     return v, time_spent
 
 #%%
-# import fipy as fp
+import fipy as fp
+from fipy.tools import numerix
+import copy
 
-# def solve_fipy_with_given_N(N, params):
+def solve_fipy_with_given_N(N, params):
+    
+    s1 = params[0]; s2 = params[1]
+    t1 = params[2]; t2 = params[3]
+    
+    dx = 2.0/N
+    dt = 1.0
+
+    f_start_time = time.time()
+    
+    mesh = fp.Grid1D(nx=N, dx=dx)
+    
+    v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=INI_VALUE, hasOld=True)
+    
+    # BC
+    v_fp.constrain(0, where=mesh.facesLeft) # left BC is always Dirichlet
+    # v_fp.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight) # right: flux=0
+    
+    def dif_fp(u):
+        b=-4.
+        D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * u + numerix.exp(s1 + s2*b))
+        
+        return D
+
+    # Boussinesq eq. for theta
+    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=dif_fp(v_fp)) + SOURCE
+    
+    MAX_SWEEPS = 10000
+
+    v_fp.updateOld()
+
+    res = 0.0
+    for r in range(MAX_SWEEPS):
+        # print(i, res)
+        resOld=res
+        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
+        if abs(res - resOld) < abs_tolerance: break # it has reached to the solution of the linear system
+
+    
+    time_spent = time.time() - f_start_time
+    
+    return  v_fp.value, time_spent
+
 #%%
 # Params
 DIRI = 0
@@ -86,11 +130,18 @@ rnd_params = np.random.rand(N_PARAMS,4) * 2
 v_sols = [[] for i in range(N_PARAMS)]
 times = [[] for i in range(N_PARAMS)]
 
+v_sols_fipy = [[] for i in range(N_PARAMS)]
+times_fipy = [[] for i in range(N_PARAMS)]
+
 for nN, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
         v_sol, time_spent = solve_with_given_N(N, params)
+        v_sol_fipy, time_spent_fipy = solve_fipy_with_given_N(N, params)
+        
         v_sols[nparam].append(v_sol)
+        v_sols_fipy[nparam].append(v_sol_fipy)
         times[nparam].append(time_spent)
+        times_fipy[nparam].append(time_spent_fipy)
         
         
 
@@ -104,7 +155,9 @@ for nparam, params in enumerate(rnd_params):
     plt.figure(nparam, figsize=(8, 6), dpi=400)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N+1)
-        plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))     
+        plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
+        plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+        
     
     plt.title(params)
     plt.legend()
@@ -112,8 +165,11 @@ for nparam, params in enumerate(rnd_params):
     
 # Plot times
 time_avgs = [np.mean(i) for i in times]
+time_avgs_fipy = [np.mean(i) for i in times_fipy]
+
 plt.figure('times')
 plt.plot(Ns, time_avgs, 'o')
+plt.plot(Ns, time_avgs_fipy, 'x')
 plt.title('Comp times')
 plt.savefig('acc_plots/acc_comp_times.png')
 
