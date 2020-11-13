@@ -115,7 +115,7 @@ time_avgs = [np.mean(i) for i in times]
 plt.figure('times')
 plt.plot(Ns, time_avgs, 'o')
 plt.title('Comp times')
-plt.savefig('acc_comp_times.png')
+plt.savefig('acc_plots/acc_comp_times.png')
 
     
     
