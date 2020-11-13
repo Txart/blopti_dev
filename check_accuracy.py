@@ -14,19 +14,9 @@ import numpy as np
 #%%
 import fd # own fortran functions
 
-
-
 def solve_with_given_N(N, params):
     
     dx = 2.0/N
-    
-    DIRI = 0
-    SOURCE = 2
-    INI_VALUE = 0.2
-    MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
-    
-    rel_tolerance = 1e-5
-    abs_tolerance = 1e-5
     
     # Relaxation parameter
     weight = 1/N
@@ -46,21 +36,14 @@ def solve_with_given_N(N, params):
 
     
     c_start_time = time.time()
-
-    # Update source
-    source = SOURCE
-    
-    # Update BC
-    DIRI = DIRI
-    # No-flux in the right all the time
     
     # Compute tolerance. Each day, a new tolerance because source changes
-    _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
+    _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
     rel_tol = rel_tolerance * np.linalg.norm(F)
     print(rel_tol)
     
     for i in range(0, MAX_INTERNAL_NITER):
-        J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
+        J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
         
         eps_x = np.linalg.solve(J,-F)
         v = v + weight*eps_x
@@ -76,7 +59,22 @@ def solve_with_given_N(N, params):
     time_spent = time.time() - c_start_time
     print(f"Finite diff FORTRAN, {N} time = {time_spent}") 
     
-    return v
+    return v, time_spent
+
+#%%
+# import fipy as fp
+
+# def solve_fipy_with_given_N(N, params):
+#%%
+# Params
+DIRI = 0
+SOURCE = 2
+INI_VALUE = 0.2
+MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+
+rel_tolerance = 1e-5
+abs_tolerance = 1e-5
+
 
 #%%
 # Run accuracy tests
@@ -86,15 +84,18 @@ N_PARAMS = 10
 rnd_params = np.random.rand(N_PARAMS,4) * 2
 
 v_sols = [[] for i in range(N_PARAMS)]
+times = [[] for i in range(N_PARAMS)]
 
 for nN, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
-        v_sol = solve_with_given_N(N, params)
+        v_sol, time_spent = solve_with_given_N(N, params)
         v_sols[nparam].append(v_sol)
+        times[nparam].append(time_spent)
+        
         
 
 #%%
-# Plot
+# Plot accuracies
         
 cmap = plt.cm.Accent
 cmaplist = [cmap(int(i)) for i in range(0, len(Ns))]
@@ -109,6 +110,12 @@ for nparam, params in enumerate(rnd_params):
     plt.legend()
     plt.savefig(f'acc_plots/{nparam}.png')
     
+# Plot times
+time_avgs = [np.mean(i) for i in times]
+plt.figure('times')
+plt.plot(Ns, time_avgs, 'o')
+plt.title('Comp times')
+plt.savefig('acc_comp_times.png')
 
     
     
