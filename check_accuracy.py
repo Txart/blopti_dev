@@ -164,8 +164,10 @@ for nparam, params in enumerate(rnd_params):
     plt.savefig(f'acc_plots/{nparam}.png')
     
 # Plot times
-time_avgs = [np.mean(i) for i in times]
-time_avgs_fipy = [np.mean(i) for i in times_fipy]
+times_np = np.array(times)
+times_fipy_np = np.array(times_fipy)
+time_avgs = np.mean(times_np, axis=0)
+time_avgs_fipy = np.mean(times_fipy_np, axis=0)
 
 plt.figure('times')
 plt.plot(Ns, time_avgs, 'o')
