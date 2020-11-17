@@ -100,10 +100,7 @@ def confidence_intervals(ci_percents, n_sensors, ndays, n_posterior_samples):
     return conf_interv_results
     
 
-#%%   
-"""
- read from backend
-"""
+
 def read_from_backend(filename):
     
     reader = emcee.backends.HDFBackend(filename, read_only=True)
@@ -115,6 +112,8 @@ def read_from_backend(filename):
     
     return reader
 
+#%%
+    
 fname = r"mcmc_result_chain.h5"
 # fname = "mcmc_result_chain.h5"
 reader = read_from_backend(fname)
