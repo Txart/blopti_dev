@@ -77,7 +77,7 @@ def confidence_intervals(ci_percents, n_sensors, ndays, n_posterior_samples):
     conf_interv_results : numpy array
         Call as follows: conf_interv_results[which sensor?][which day?][which CI?]
         From there: -> [0] is maximum of the CI
-                       [1] is minimum of the CI
+                        [1] is minimum of the CI
 
     """
 
@@ -112,10 +112,19 @@ def read_from_backend(filename):
     
     return reader
 
+def corner_plot(samples, savefig=True):
+    import corner
+    labels = ['s1', 's2', 't1', 't2']
+    fig = corner.corner(samples, labels=labels)
+    if savefig:
+        fig.savefig("MCMC_corner_result.png")
+    
+    return 0
+
 #%%
     
-fname = r"mcmc_result_chain.h5"
-# fname = "mcmc_result_chain.h5"
+fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
+
 reader = read_from_backend(fname)
 fat_samples = reader.get_chain(flat=False)
 
@@ -124,6 +133,8 @@ fat_samples = reader.get_chain(flat=False)
 
 nparams = fat_samples.shape[2]
 fig, axes = plt.subplots(nparams, sharex=True)
+
+axes[0].set_title('Before discarding and thinning')
 
 labels = ["s1", "s2", 't1', 't2']
 for i in range(nparams):
@@ -141,23 +152,13 @@ print(tau)
 #%%
 # Thin and discard samples
 DISCARD = 0
-THIN = 1
+THIN = 1 # 1=no thinning
 flat_samples = reader.get_chain(discard=DISCARD, thin=THIN, flat=True)
+fat_samples = reader.get_chain(discard=DISCARD, thin=THIN, flat=False)
 print(f"flat samples shape: {flat_samples.shape}")
 
 #%%
-"""
- Corner plot
-"""
-def corner_plot(samples, savefig=True):
-    import corner
-    labels = ['s1', 's2', 't1', 't2']
-    fig = corner.corner(samples, labels=labels)
-    if savefig:
-        fig.savefig("MCMC_corner_result.png")
-    
-    return 0
-
+# Corner plot
 corner_plot(flat_samples, savefig=True)
 
 #%%
@@ -166,90 +167,118 @@ flat_samples_all = reader.get_chain(flat=True)
 log_probs_all = reader.get_log_prob(flat=True)
 max_lp = np.max(log_probs_all)
 max_likelihood_params = flat_samples_all[np.where(log_probs_all==max_lp)[0]][0]
+
+print(f'maximum likelihood params: {max_likelihood_params}')
    
 
 #%%
 """
- Plot Sy and T
+ Plot Sy and T. Compute and plot confidence intervals.
 """
-def Sy(zeta, s1, s2):
-    return np.exp(s1 + s2 * zeta)
+def S(zeta, params):
+    s1 = params[0]; s2 = params[1] 
+    return np.exp(s1 + s2*zeta)
+
+def T(zeta, b, params):
+    t1 = params[2]; t2 = params[3]
+    return np.exp(t1)/t2 * (np.exp(t2*zeta) - np.exp(t2*B))
+
+def turn_conf_intervals_into_array_indices(conf_intervals_list, flat_samples):
+    ci_array = np.array(conf_intervals_list)
+    ci_indices = ci_array * len(flat_samples) / 100
+    return ci_indices.astype(dtype=int)
+
+def sort_samples_by_logprobs(flat_samples, log_probs):
+    return flat_samples[log_probs.argsort()[::-1]]
+
+def max_and_min_sto_and_trans_curves(sto_array, tra_array):
+    sto_ci = [0] * len(CONF_INTERVALS_LIST)
+    tra_ci = [0] * len(CONF_INTERVALS_LIST)
+    for i, ci in enumerate(conf_int_indices_to_pick):
+        # storage
+        sto_arr_ci = sto_array[:ci]
+        sto_max_ci = sto_arr_ci.max(axis=0)
+        sto_min_ci = sto_arr_ci.min(axis=0)
+        sto_ci[i] = [sto_min_ci, sto_max_ci]
+        # transmissivity
+        tra_arr_ci = tra_array[:ci]
+        tra_max_ci = tra_arr_ci.max(axis=0)
+        tra_min_ci = tra_arr_ci.min(axis=0)
+        tra_ci[i] = [tra_min_ci, tra_max_ci]
+        
+    return sto_ci, tra_ci
+
+def plot_all_sto_and_tra(sto_array, tra_array):
+    fig, ax = plt.subplots(nrows=2, ncols=1)
+    axS = ax[0]; axT = ax[1]
+    axS.set_title('Sy(zeta)'); axT.set_title('T(zeta)')
+    axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
+    axS.set_xlabel('Sy'); axS.set_ylabel('zeta(m)')
+    axT.set_xlabel('T'); axT.set_ylabel('zeta(m)')
     
-def T(zeta, t1, t2, b):
-    return np.exp(t1)/t2 * (np.exp(t2*zeta) - np.exp(t2*b))
+    for s, t in zip(sto_array, tra_array):
+        # axS.plot(s, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
+        # axT.plot(t, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
+        axS.plot(s, ZETA_GRID, alpha=1/256, color='black')
+        axT.plot(t, ZETA_GRID, alpha=1/256, color='black')
+    
+    axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
+    axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
+    
+    plt.show()
+    
+    return None
 
-n_samples = len(flat_samples)
+def plot_conf_intervals_and_ML(max_and_min_sto_curves, max_and_min_tra_curves):
+    
+    fig, ax = plt.subplots(nrows=2, ncols=1)
+    # CI
+    axS = ax[0]; axT = ax[1]
+    axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
+    axS.set_xlabel('Sy'); axS.set_ylabel('zeta(m)')
+    axT.set_xlabel('T'); axT.set_ylabel('zeta(m)')
+    
+    for i, ci in enumerate(CONF_INTERVALS_LIST):
+        axS.fill_betweenx(ZETA_GRID, max_and_min_sto_curves[i][1], max_and_min_sto_curves[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+        axT.fill_betweenx(ZETA_GRID, max_and_min_tra_curves[i][1], max_and_min_tra_curves[i][0], label= f'{ci}% conf. int.', alpha=0.1)
+    
+    
+    
+    axS.plot(S(ZETA_GRID,  max_likelihood_params), ZETA_GRID, label='ML')
+    axT.plot(T(ZETA_GRID, B,  max_likelihood_params), ZETA_GRID, label='ML')
+    
+    fig.legend()
+    
+    axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
+    axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
+    
+    plt.show()
+    
+    return None
+    
+    
+# Parameters   
+B = -8.0 # impermeable bottom elevation in m. Parameter to be chosen.
+CONF_INTERVALS_LIST = [90,68, 10] # confidence interval %
+ZETA_GRID = np.arange(-8, 1, 0.01)
 
-# Conf intervals
-conf_int_perc = np.array([90,10]) # % of ci to be computed. Put largest first
-conf_int_indices_to_pick = (100. - conf_int_perc) * n_samples / 100
-conf_int_indices_to_pick = conf_int_indices_to_pick.astype(dtype=int)
-log_probs = reader.get_log_prob(flat=True, discard=DISCARD, thin=THIN)
-sorted_flatsamples = flat_samples[-log_probs.argsort()] # samples sorted by log_probs
+CONF_INTERVALS_LIST = sorted(CONF_INTERVALS_LIST) #For the plot
 
+conf_int_indices_to_pick = turn_conf_intervals_into_array_indices(CONF_INTERVALS_LIST, flat_samples)
+sorted_flatsamples =  sort_samples_by_logprobs(flat_samples_all, log_probs_all)
 
-zeta_grid = np.arange(-3, 1, 0.01)
-# h_2d_grid = np.array([h_grid,]*n_samples)
-sto_array = np.array([Sy(zeta_grid, s1, s2) for s1, s2, _, _ in sorted_flatsamples])
-# TODO: pass also b.
-tra_array = np.array([T(zeta_grid, t1, t2) for _, _, t1, t2  in sorted_flatsamples])
+# Arrays containing storage and transm for all parameters
+sto_array = np.array([S(ZETA_GRID, params) for params in sorted_flatsamples])
+tra_array = np.array([T(ZETA_GRID, B, params) for params  in sorted_flatsamples])
 
-sto_ci = [0] * len(conf_int_perc) # [[Smin_ci1, Smax_ci1], [Smin_ci2, Smax_ci2], ...]
-tra_ci = [0] * len(conf_int_perc)
-for i, ci in enumerate(conf_int_indices_to_pick):
-    # storage
-    sto_arr_ci = sto_array[:ci]
-    sto_max_ci = sto_arr_ci.max(axis=0)
-    sto_min_ci = sto_arr_ci.min(axis=0)
-    sto_ci[i] = [sto_min_ci, sto_max_ci]
-    # transmissivity
-    tra_arr_ci = tra_array[:ci]
-    tra_max_ci = tra_arr_ci.max(axis=0)
-    tra_min_ci = tra_arr_ci.min(axis=0)
-    tra_ci[i] = [tra_min_ci, tra_max_ci]
-       
 # Plot all curves with some alpha    
-fig, ax = plt.subplots(nrows=2, ncols=1)
-axS = ax[0]; axT = ax[1]
-axS.set_title('Sy(zeta)'); axT.set_title('T(zeta)')
-axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
-axS.set_xlabel('Sy'); axS.set_ylabel('zeta(m)')
-axT.set_xlabel('T'); axT.set_ylabel('zeta(m)')
+plot_all_sto_and_tra(sto_array, tra_array)
 
-for s, t in zip(sto_array, tra_array):
-    # axS.plot(s, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
-    # axT.plot(t, h_grid, alpha=1/(30*np.log(flat_samples.shape[0])), color='black')
-    axS.plot(s, zeta_grid, alpha=1/256, color='black')
-    axT.plot(t, zeta_grid, alpha=1/256, color='black')
-
-axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
-axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
+max_and_min_sto_curves, max_and_min_tra_curves = max_and_min_sto_and_trans_curves(sto_array, tra_array) 
+# Structure of arrays: [[Smin_ci1, Smax_ci1], [Smin_ci2, Smax_ci2], ...], and each one ranges for all ZETA_GRID values
 
 # Plot confidence intervals and ML curves for S and T
-fig, ax = plt.subplots(nrows=2, ncols=1)
-# CI
-axS = ax[0]; axT = ax[1]
-axS.set_xlim(left=0, right=1.5); axT.set_xlim(left=0, right=10)
-axS.set_xlabel('Sy'); axS.set_ylabel('zeta(m)')
-axT.set_xlabel('T'); axT.set_ylabel('zeta(m)')
-
-for i, ci in enumerate(conf_int_perc):
-    axS.fill_betweenx(zeta_grid, sto_ci[i][1], sto_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
-    axT.fill_betweenx(zeta_grid, tra_ci[i][1], tra_ci[i][0], label= f'{ci}% conf. int.', alpha=0.1)
-
-# ML
-s1ML = max_likelihood_params[0]
-s2ML = max_likelihood_params[1]
-t1ML = max_likelihood_params[2]
-t2ML = max_likelihood_params[3]
-
-axS.plot(Sy(zeta_grid, s1ML, s2ML), zeta_grid, label='ML')
-axT.plot(T(zeta_grid,  t1ML, t2ML), zeta_grid, label='ML')
-
-fig.legend()
-
-axS.hlines(y=0, xmin=0, xmax=1, colors='brown', linestyles='dashed', label='peat surface')
-axT.hlines(y=0, xmin=0, xmax=10, colors='brown', linestyles='dashed', label='peat surface')
+plot_conf_intervals_and_ML(max_and_min_sto_curves, max_and_min_tra_curves)
 
 
 #%%     
