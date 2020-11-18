@@ -2,6 +2,11 @@
 """
 Created on Wed Apr 29 15:59:07 2020
 
+@author fo calibration: inakiu
+
+Read Penman_Monteith_calibration word document for details on calibration
+
+
 @author: slauniai
 
 Estimate daily ET from meteorological station data in absense of radiation data:
@@ -39,7 +44,7 @@ import evapotranspiration_fao as et
 # Params
 
 
-# air_pressure = et.pressure_from_altitude(elev) # Computes air pressure in the station given sea level air pressure
+air_pressure = et.pressure_from_altitude(8.0) # Computes air pressure in the station given sea level air pressure
 
 def compute_ET(jday, Tmax, Tave, Tmin, RH, U, air_pressure, print_res=False):
     """
@@ -170,7 +175,7 @@ if __name__ == '__main__':
     for jday in range(0, 365):
         Tmax = temperature[jday][0]; Tmean = temperature[jday][1]; Tmin = temperature[jday][2]
         RH = humidity[jday]; U = windspeed[jday]
-        ETa, _, Rn, _, _ = compute_ET(jday+1, Tmax=Tmax, Tave=Tmean, Tmin=Tmin, RH=RH, U=U)
+        ETa, _, Rn, _, _ = compute_ET(jday+1, Tmax=Tmax, Tave=Tmean, Tmin=Tmin, RH=RH, U=U, air_pressure=air_pressure, print_res=False)
         year_ETa.append(ETa); year_Rn.append(Rn)
         
     plt.figure()
@@ -179,41 +184,19 @@ if __name__ == '__main__':
     plt.xlabel('julian days')
     
     plt.legend()
-    #%%
-    # data sources and others
-    """
-     Rn and ET averages for years(2004-2007) from Hirano et al. 2015 Evapotranspiration of tropical peat swamp forests
-     T timeseries from 
-         Year:   forest type*, Rn [GJ m-2 yr-1], ET[mm yr-1] 
-         ----   
-        2004:   UF, 4.78, 1634
-                DF, 4.71, 1529
-                DB, 4.53, 1359
-        2005:   UF, 4.77, 1648
-                DF, 4.79, 1611
-                DB, 4.46, 1404
-        2006:   UF, 4.58, 1566
-                DF, 4.41, 1401
-                DB, 4.25, 1277
-        2007:   UF, 4.92, 1695
-                DF, 4.87, 1671
-                DB, 4.68, 1454
-        Mean:   UF, 4.76, 1636
-                DF, 4.70, 1553
-                DB, 4.48, 1374
-                
-        * UF: Undrained Forest; DF = Drained Forest; DB = Drained Burnt forest
+#%%
+# Save results in file
     
-    Temperature, humidity and windspeed averages from: https://www.worldweatheronline.com/palangkaraya-weather-averages/kalimantan-tengah/id.aspx
-        Tavg = 27  
-        Tmax = 30
-        Tmin = 25
-        rel. hum. = 79%
-        windspeed = 8km/h = 2.22 m/s
-    
-    Fitting:
-    1) First I fit the KRS parameter with Rn values. This gives KRS=0.35 for UF and DF; KRS=0.32 for DB
-    2) Then I fit the Kc parameter with the ET values. This gives Kc=0.62 for UF; Kc=0.59 for DF; Kc=0.54 for DB
-    
-        ****** Carefull! This gives too high KRS values!!
-    """
+import pandas as pd
+
+jdays = [i for i in range(1,366)]
+df = pd.DataFrame(list(zip(jdays, year_ETa)), columns=['jday', 'ET'])
+
+fname = 'ET_modelled.xlsx'
+df.to_excel(fname)
+
+
+
+
+
+  
