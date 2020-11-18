@@ -1,0 +1,122 @@
+Positions sent by Roy 12-II-2020
+/* 1 */
+{
+    “_id” : ObjectId(“5c615dbfd9d0b129eeef9d94"),
+    “label” : “P021X”,
+    “latitude” : “0.92863",
+    “longitude” : “102.14321"
+}/* 2 */
+{
+    “_id” : ObjectId(“5c615ce8d9d0b129eeef9d73"),
+    “label” : “P015",
+    “latitude” : “0.9173187135205095",
+    “longitude” : “102.15271684127822"
+}/* 3 */
+{
+    “_id” : ObjectId(“5c6b8c0b5f3a3a5c74c66465"),
+    “label” : “P006X”,
+    “latitude” : “0.90160",
+    “longitude” : “102.11381"
+}/* 4 */
+{
+    “_id” : ObjectId(“5dabd87eb9ebf23f0cfa08c5"),
+    “label” : “P009X”,
+    “latitude” : “0.94073",
+    “longitude” : “102.13993"
+}/* 5 */
+{
+    “_id” : ObjectId(“5cbd72eb3d64165b0dd11669"),
+    “label” : “P016X”,
+    “latitude” : “0.93772",
+    “longitude” : “102.1403"
+}/* 6 */
+{
+    “_id” : ObjectId(“5d0f139a6e5f99151368ef30"),
+    “label” : “P016",
+    “latitude” : “0.9368148609535094",
+    “longitude” : “102.13602136454426"
+}/* 7 */
+{
+    “_id” : ObjectId(“5dabd8f5b9ebf23f0cfa08cc”),
+    “label” : “P009",
+    “latitude” : “0.94112",
+    “longitude” : “102.14108"
+}/* 8 */
+{
+    “_id” : ObjectId(“5c720a9976e3e446c94105cb”),
+    “label” : “P007",
+    “latitude” : “0.90204",
+    “longitude” : “102.13933"
+}/* 9 */
+{
+    “_id” : ObjectId(“5ca736ae0af74003ef07c8c1"),
+    “label” : “P007X”,
+    “latitude” : “0.90033",
+    “longitude” : “102.14022"
+}/* 10 */
+{
+    “_id” : ObjectId(“5d0f07806e5f99151368ee8b”),
+    “label” : “P012X”,
+    “latitude” : “0.93298",
+    “longitude” : “102.12342"
+}/* 11 */
+{
+    “_id” : ObjectId(“5c615c1dd9d0b129eeef9d52"),
+    “label” : “P015X”,
+    “latitude” : “0.91754",
+    “longitude” : “102.15384"
+}/* 12 */
+{
+    “_id” : ObjectId(“5c615d81d9d0b129eeef9d89"),
+    “label” : “P003",
+    “latitude” : “0.95270",
+    “longitude” : “102.12114"
+}/* 13 */
+{
+    “_id” : ObjectId(“5c6b88a55f3a3a5c74c66452"),
+    “label” : “P002X”,
+    “latitude” : “0.94024",
+    “longitude” : “102.12067"
+}/* 14 */
+{
+    “_id” : ObjectId(“5c615d2bd9d0b129eeef9d7e”),
+    “label” : “P006",
+    “latitude” : “0.90247",
+    “longitude” : “102.11505"
+}/* 15 */
+{
+    “_id” : ObjectId(“5c6f8b2a76e3e446c940daf7"),
+    “label” : “P012",
+    “latitude” : “0.93129",
+    “longitude” : “102.12347"
+}/* 16 */
+{
+    “_id” : ObjectId(“5c615fd5d9d0b129eeef9dd8"),
+    “label” : “P002",
+    “latitude” : “0.93916",
+    “longitude” : “102.12071"
+}/* 17 */
+{
+    “_id” : ObjectId(“5c907c43982e893b7713e8a1"),
+    “label” : “P021",
+    “latitude” : “0.929119",
+    “longitude” : “102.147356"
+}/* 18 */
+{
+    “_id” : ObjectId(“5d0da92e6e5f99151368e58c”),
+    “label” : “P003X”,
+    “latitude” : “0.95422",
+    “longitude” : “102.12123"
+}/* 19 */
+{
+    “_id” : ObjectId(“5d0ef6076e5f99151368eda9"),
+    “label” : “P018X”,
+    “latitude” : “0.91743",
+    “longitude” : “102.14570"
+}/* 20 */
+{
+    “_id” : ObjectId(“5dabdb4db9ebf23f0cfa08e5"),
+    “label” : “P018",
+    “latitude” : “0.91664",
+    “longitude” : “102.14396"
+}
