@@ -53,16 +53,17 @@ weather_fn = Path(filenames_df[filenames_df.Content == 'historic_precipitation']
 # Choose smaller study area
 STUDY_AREA = (0,-1), (0,-1)
 
+wtd_old_fn = dem_rst_fn # not reading from previous wtd raster
+can_arr, wtd_old , dem, peat_type_arr, peat_depth_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn)
 
 
-if 'CNM' and 'cr' and 'c_to_r_list' not in globals():
-    CNM, cr, c_to_r_list = preprocess_data.gen_can_matrix_and_raster_from_raster(sa=STUDY_AREA, can_rst_fn=can_rst_fn, dem_rst_fn=dem_rst_fn)
+if 'CNM' and 'labelled_canals' and 'c_to_r_list' not in globals():
+    labelled_canals = preprocess_data.label_canal_pixels(can_arr, dem)
+    CNM, c_to_r_list = preprocess_data.gen_can_matrix_and_label_map(labelled_canals, dem)
 
 #else:
 #    print "Canal adjacency matrix and raster loaded from memory."
     
-wtd_old_fn = dem_rst_fn # not reading from previous wtd raster
-_, wtd_old , dem, peat_type_arr, peat_depth_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn)
 
 PARAMS_df = preprocess_data.read_params(params_fn)
 BLOCK_HEIGHT = PARAMS_df.block_height[0]; CANAL_WATER_LEVEL = PARAMS_df.canal_water_level[0]
