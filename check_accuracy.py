@@ -157,7 +157,7 @@ for nparam, params in enumerate(rnd_params):
         x = np.linspace(0,2,N+1)
         x_fp = np.linspace(0,2,N+2)
         plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
-        plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+        plt.plot(x_fp, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
         
     
     plt.title(params)
