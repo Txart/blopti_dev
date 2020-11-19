@@ -10,7 +10,7 @@ import rasterio
 import scipy.sparse
 import pandas as pd
 
-
+#%%
 
 def read_params(fn=r"/home/inaki/GitHub/dd_winrock/data/params.xlsx"):
     df = pd.read_excel(fn)
@@ -33,8 +33,8 @@ def peat_depth_map(peat_depth_type_arr):
 
 def read_raster(raster_filename):
     with rasterio.open(raster_filename) as raster:
-        raster = raster.read(1)
-    return raster
+        rst = raster.read(1)
+    return rst
 
 def preprocess_can_arr_raster(can_arr):
     can_arr[can_arr < 0.5] = 0
@@ -60,11 +60,14 @@ def preprocess_peat_depth(peat_depth_arr, dem):
     # fill some nodata values to get same size as dem
     peat_depth_arr[(np.where(dem>0.1) and np.where(peat_depth_arr <0.1))] = 1.
     return peat_depth_arr
+
+def mask_non_acquatic_blocks(blocks_arr, can_arr):
+    return blocks_arr*can_arr
     
 def resize_study_area(sa, raster):
     return raster[sa[0][0]:sa[0][1], sa[1][0]:sa[1][1]]    
       
-def read_preprocess_rasters(sa, wtd_old_rst_fn, can_rst_fn, dem_rst_fn, peat_type_rst_fn, peat_depth_rst_fn):
+def read_preprocess_rasters(sa, wtd_old_rst_fn, can_rst_fn, dem_rst_fn, peat_type_rst_fn, peat_depth_rst_fn, blocks_rst_fn, sensor_loc_fn):
     """
     Deals with issues specific to each  input raster.
     Corrects nodatas, resizes to selected study area, etc.
@@ -76,13 +79,15 @@ def read_preprocess_rasters(sa, wtd_old_rst_fn, can_rst_fn, dem_rst_fn, peat_typ
     dem = read_raster(dem_rst_fn)
     peat_type_arr = read_raster(peat_type_rst_fn)
     peat_depth_arr = read_raster(peat_depth_rst_fn)
+    blocks_arr = read_raster(blocks_rst_fn)
+    sensor_loc_arr = read_raster(sensor_loc_fn)
         
         
     can_arr = preprocess_can_arr_raster(can_arr)  #Get mask of canals: 1 where canals exist, 0 otherwise
     dem = preprocess_dem(dem)   # Convert from numpy no data to -9999.0
     peat_type_arr = preprocess_peat_type(peat_type_arr, dem) # control nodata values, impose same size as dem
     peat_depth_arr = preprocess_peat_depth(peat_depth_arr, dem) # nodatas, same size as dem and give peat depth map values
-    
+    blocks_arr = mask_non_acquatic_blocks(blocks_arr, can_arr) # only useful blocks are those that are in water! (I.e., that coincide with a water pixel)
 
     # Apply study area restriction
     wtd_old = resize_study_area(sa, wtd_old)
@@ -90,9 +95,11 @@ def read_preprocess_rasters(sa, wtd_old_rst_fn, can_rst_fn, dem_rst_fn, peat_typ
     can_arr = resize_study_area(sa, can_arr)
     peat_depth_arr = resize_study_area(sa, peat_depth_arr)
     peat_type_arr = resize_study_area(sa, peat_type_arr)
+    blocks_arr = resize_study_area(sa, blocks_arr)
+    sensor_loc_arr = resize_study_area(sa, sensor_loc_arr)
 
     
-    return can_arr, wtd_old, dem, peat_type_arr, peat_depth_arr
+    return can_arr, wtd_old, dem, peat_type_arr, peat_depth_arr, blocks_arr, sensor_loc_arr
 
 
     
