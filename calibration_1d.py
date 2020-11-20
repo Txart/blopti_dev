@@ -224,9 +224,7 @@ def gen_positions_for_walkers(n_walkers, n_params):
     noise = (np.random.rand(n_walkers, n_params) -0.5)*0.2 # random numbers in (-0.1, +0.1)
     return true_values + noise
  
-if N_CPU > 1:
-    # Turn off NumPy automatic parallelization
-    
+if N_CPU > 1:  
     with Pool(N_CPU) as pool:
             
         pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
@@ -237,7 +235,7 @@ if N_CPU > 1:
 
         fname = "mcmc_result_chain.h5"
         backend = emcee.backends.HDFBackend(fname)
-        # backend.reset(nwalkers, ndim) # commenting this line: continue from stored markovchain
+        backend.reset(nwalkers, ndim) # commenting this line: continue from stored markovchain
         
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool,
                                         backend=backend)
