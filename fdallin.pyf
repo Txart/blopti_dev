@@ -1,0 +1,29 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module fdallin ! in 
+    interface  ! in :fdallin
+        subroutine finite_diff(v,v_old,b,n,dt,dx,source,diri_bc,s1,s2,t1,t2,rel_tol,abs_tolerance,weight,max_internal_niter,v_sol) ! in :fdallin:finite-diff.f95
+            real dimension(n + 1),intent(in), depend(n) :: v
+            real dimension(n + 1),intent(in),depend(n) :: v_old
+            real dimension(n + 1),intent(in),depend(n) :: b
+            integer, intent(in) :: n
+            real intent(in) :: dt
+            real intent(in) :: dx
+            real intent(in) :: source
+            real intent(in) :: diri_bc
+            real intent(in) :: s1
+            real intent(in) :: s2
+            real intent(in) :: t1
+            real intent(in) :: t2
+            real intent(in) :: rel_tol
+            real intent(in) :: abs_tolerance
+            real intent(in) :: weight
+            integer intent(in) :: max_internal_niter
+            real dimension(n + 1),intent(out),depend(n) :: v_sol
+        end subroutine finite_diff
+    end interface 
+end python module fdallin
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
