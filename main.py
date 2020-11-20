@@ -58,6 +58,8 @@ STUDY_AREA = (0,-1), (0,-1)
 wtd_old_fn = dem_rst_fn # not reading from previous wtd raster
 can_arr, wtd_old , dem, peat_type_arr, peat_depth_arr, blocks_arr, sensor_loc_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn, blocks_fn, sensor_loc_fn)
 
+sensor_loc_indices = utilities.get_sensor_loc_array_indices(sensor_loc_arr)
+
 if 'CNM' and 'labelled_canals' and 'c_to_r_list' not in globals():
     labelled_canals = preprocess_data.label_canal_pixels(can_arr, dem)
     CNM, c_to_r_list = preprocess_data.gen_can_matrix_and_label_map(labelled_canals, dem)

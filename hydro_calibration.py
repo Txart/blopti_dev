@@ -8,8 +8,74 @@ import fipy as fp
 from fipy.tools import numerix
 import numpy as np
 import pandas as pd
+import fd # own fortran functions
 
 #%%
+
+def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
+             boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, peat_depth):
+
+    REL_TOLERANCE = 1e-5
+    ABS_TOLERANCE = 1e-5
+    
+    s1 = params[0]; s2 = params[1] 
+    t1 = params[2]; t2 = params[3]
+    
+    ele = ele_interp(np.linspace(0, nx*dx, nx))
+    b = peat_depth + ele.min() - ele
+    
+    v_ini = theta_ini[:]  
+    v = v_ini[:]
+    v_old = v_ini[:] # in the previous timestep
+
+    # Relaxation parameter
+    weight = 1/nx
+    
+    # J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)   
+    
+    MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+    
+    theta_sol_list = [] # returned quantity
+    
+    for day in range(ndays):
+        # BC and Source/sink update
+        theta_left = boundary_values_left[day] # left BC is always Dirichlet. No-flux in the right all the time
+        source = precip[day] - evapotra[day]
+        
+        # Compute tolerance. Each day, a new tolerance because source changes
+        _, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=theta_left, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
+        rel_tol = REL_TOLERANCE * np.linalg.norm(F)
+
+        for i in range(0, MAX_INTERNAL_NITER):
+            J, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=theta_left, s1=s1, s2=s2, t1=t1, t2=t2, source=source)       
+            eps_x = np.linalg.solve(J,-F)
+            v = v + weight*eps_x
+    
+            # stopping criterion
+            residue = np.linalg.norm(F) - rel_tol
+            if residue < ABS_TOLERANCE:
+                break
+        
+        v_old = v[:]
+        
+        # Append to list
+        theta_sol = v[:]
+        theta_sol_sensors = np.array([theta_sol[sl] for sl in sensor_loc[1:]]) # canal sensor is part of the model; cannot be part of the fitness estimation
+        
+        theta_sol_list.append(theta_sol_sensors[0])
+    
+    b_sensors = np.array([b[sl] for sl in sensor_loc[1:]])
+    
+    zeta_from_theta_sol_sensors = zeta_from_theta(np.array(theta_sol_list), b_sensors, s1, s2)
+        
+    return zeta_from_theta_sol_sensors
+
+
+def zeta_from_theta(x, b, s1, s2):
+        return np.log(np.exp(s2*b) + s2*np.exp(-s1)*x) / s2
+
+
+
 def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, peat_depth):
     
@@ -419,3 +485,5 @@ def read_sensors(filename):
     ET = df_sensors['ET'].to_numpy()
     
     return bcleft, bcright, sensor_measurements, day, P, ET
+
+
