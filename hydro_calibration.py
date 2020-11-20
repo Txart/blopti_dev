@@ -21,7 +21,7 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     s1 = params[0]; s2 = params[1] 
     t1 = params[2]; t2 = params[3]
     
-    ele = ele_interp(np.linspace(0, nx*dx, nx))
+    ele = ele_interp(np.linspace(0, (nx+1)*dx, nx+1))
     b = peat_depth + ele.min() - ele
     
     v_ini = theta_ini[:]  
