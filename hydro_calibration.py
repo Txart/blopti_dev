@@ -111,7 +111,6 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     MAX_SWEEPS = 1000
     
     for day in range(ndays):
-        print(f'day: {day}')
         
         theta.updateOld()
         
@@ -128,7 +127,6 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         
         res = 0.0
         for r in range(MAX_SWEEPS):
-            print(f'r: {r}')
             resOld=res
             res = eq.sweep(var=theta, dt=0.001)
             if abs(res - resOld) < 1e-7: break # it has reached the solution of the linear system
