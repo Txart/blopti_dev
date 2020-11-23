@@ -91,6 +91,10 @@ peat_bottom_elevation = - peat_depth_arr * catchment_mask # meters with respect 
 
 h_to_tra_and_C_dict, K = hydro_utils.peat_map_interp_functions(Kadjust=KADJUST) # Load peatmap soil types' physical properties dictionary
 
+weather_stations_coordinates = [(100, 100), (200,200), (234, 142)] # TODO: change with coords from data
+weather_station_mask, ws_mask_dict = preprocess_data.nearest_neighbors_mask_from_coordinates(dem.shape, weather_stations_coordinates)
+# Then, weather_station_mask is to be used to mask the source term in the equation.
+
 # Plot K
 #import matplotlib.pyplot as plt
 #plt.figure(); z = np.linspace(0.0, -20.0, 400); plt.plot(K,z); plt.title('K')

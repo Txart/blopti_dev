@@ -171,6 +171,67 @@ def gen_can_matrix_and_label_map(labelled_canals, dem):
     
     return matrix_csr, c_to_r_list
 
+
+def get_array_indices_by_rows(array_shape):
+    rows, cols = np.indices(array_shape)
+    indices = np.array(list(zip(rows.flatten(), cols.flatten())))
+    final_shape = list(array_shape) + [2] # The 2 comes from the 2D
+    
+    return indices.reshape(final_shape)
+
+def nearest_neighbors_mask_from_coordinates(array_shape, points_coordinates):
+    """
+    Takes the shape of an array and a set of points within the array and returns a mask
+    that contains, for each index in the array, the label of the closest point
+    (and closeness is measured by Euclidean distance).
+    In this particular application, it is used to know what weather station to 
+    pick the data from for each pixel.
+    NOTE: When two positions are exactly at the same distance, the first
+    points_coordinate in order is chosen
+
+    Parameters
+    ----------
+    array_shape : tuple
+        The shape of the mask. Computed with numpy's shape
+    points_coordinates : list of coordinate tuples
+        Each key is used as a value in the mask array. The tuples are used
+        to compute the distaance to other elements of the array
+
+    Returns
+    -------
+    mask : np.array
+    
+    mask_dictionary: dict
+        Keys are the values in the returned mask, and values are the corresponding
+        point coordinates from the input
+
+    """
+    
+    from scipy.spatial import distance
+    
+    # Check that point coordinates lie inside the array
+    mask = np.zeros(shape=array_shape)
+    for coord in points_coordinates:
+        try:
+            mask[coord[0], coord[1]]
+        except:
+            raise ValueError("the coordinates are out of the array's bounds")
+        
+    indices_by_row = get_array_indices_by_rows(array_shape)
+    
+    # Create output dictionary of points
+    mask_dictionary = {}
+    for npoint, point in enumerate(points_coordinates):
+        mask_dictionary[npoint] = point
+    
+    for row_n, row in enumerate(indices_by_row):
+        dists = distance.cdist(row, np.array(points_coordinates))
+        mask[row_n] = np.argmin(dists.T, axis=0)
+    
+    return mask, mask_dictionary
+
+
+
    # Activate this to run this module as main         
 #if __name__== '__main__':
 #    datafolder = r"C:\Users\L1817\Dropbox\PhD\Computation\Indonesia_WaterTable\Winrock\Canal_Block_Data\GIS_files\Stratification_layers"
