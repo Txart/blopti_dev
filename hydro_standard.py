@@ -187,7 +187,7 @@ def hydrology(solve_mode, nx, ny, dx, dy, days, ele, phi_initial, catchment_mask
 #        plot_line_of_peat(ele_with_can, y_value=y_value, title="cross-section", color='green', nx=nx, ny=ny, label="ele")
         
     extrasource = fp.CellVariable(mesh=mesh, value= phi * (C - C.old)/dt)
-    # ********************************** PDE, STEADY STATE **********************************
+    # ********************************** PDE **********************************
     if solve_mode == 'steadystate':
         temporal_term = 0.
         implicit_extra_source = 0.
@@ -195,11 +195,18 @@ def hydrology(solve_mode, nx, ny, dx, dy, days, ele, phi_initial, catchment_mask
     elif solve_mode == 'transient':
         temporal_term = fp.TransientTerm(coeff=C_value(phi, ele, sto_to_cut, cmask, drmask_not))
         implicit_extra_source = fp.ImplicitSourceTerm(coeff=extrasource)
+    
+    if neumann_bc != None: # Neumann BC
+        diri_boundary_bc_term = 0.
         
+    elif neumann_bc == None: # Dirichlet BC
+        diri_boundary_bc_term = - fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)
+
+    
     eq = temporal_term == (fp.DiffusionTerm(coeff=D_value(phi, ele, tra_to_cut, cmask, drmask_not)) 
                 + source*cmask*drmask_not
                 + implicit_extra_source
-                - fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)
+                + diri_boundary_bc_term
                 - fp.ImplicitSourceTerm(drmask*largeValue)    + drmask*largeValue*(np.ravel(wt_canal_arr))
 #                        - fp.ImplicitSourceTerm(bmask_not*largeValue) + bmask_not*largeValue*(boundary_arr)
                 )             

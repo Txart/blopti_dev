@@ -180,7 +180,7 @@ for i in range(0,N_ITER):
     
     wtd = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
                                                       peat_type_mask=peat_type_masked, httd=h_to_tra_and_C_dict, tra_to_cut=tra_to_cut, sto_to_cut=sto_to_cut,
-                                                      diri_bc=DIRI_BC, neumann_bc = None, plotOpt=True, remove_ponding_water=True,
+                                                      diri_bc=None, neumann_bc = 0., plotOpt=True, remove_ponding_water=True,
                                                       P=P, ET=ET, dt=TIMESTEP)
     
     

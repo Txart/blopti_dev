@@ -183,11 +183,11 @@ def log_likelihood(params):
         
         print('continuing...')
         try:
-            # simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
-            #                                             theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+            simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
             
-            simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
-                                                                   theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+            # simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
+            #                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
             
         except: # if error in hydro computation
             print("###### SOME ERROR IN HYDRO #######")
