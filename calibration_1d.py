@@ -115,6 +115,8 @@ MCMC parameter estimation
 nx = 10
 dt = 1. # in days. FiPy solution is implicit in time, so timestep should be 1 day.
 
+hydrology_error_count = 0
+
 def theta_from_zeta(z, s1, s2, b):
     theta = np.exp(s1)/s2 * (np.exp(s2*z) - np.exp(s2*b))
     return theta
@@ -124,6 +126,8 @@ N_PARAMS = 4
 SENSOR_MEASUREMENT_ERR = 0.05 # metres. Theoretically, 1mm
  
 def log_likelihood(params):
+    
+    global hydrology_error_count
     
     s1 = params[0]; s2 = params[1]
     
@@ -177,17 +181,21 @@ def log_likelihood(params):
             zeta_test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
         
         # print('continuing...')
+        
         try:
-            simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
-                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
-            
-            # simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
-            #                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+            with np.errstate(all='warn'):
+                simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+                                                            theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+                
+                # simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
+                #                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
             
         except: # if error in hydro computation
-            print("###### SOME ERROR IN HYDRO #######")
+            hydrology_error_count += 1
+            print( f"###### ERROR {hydrology_error_count} IN HYDRO #######")
             return -np.inf
         else:
+            # print('#### SUCCESS!')
             sigma2 = SENSOR_MEASUREMENT_ERR ** 2
             log_like += -0.5 * np.sum((zeta_test_measurements - simulated_wtd) ** 2 / sigma2 +
                                       np.log(sigma2))

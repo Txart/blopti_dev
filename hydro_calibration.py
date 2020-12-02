@@ -9,7 +9,6 @@ from fipy.tools import numerix
 import numpy as np
 import pandas as pd
 
-
 #%%
 
 def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
@@ -79,7 +78,7 @@ def zeta_from_theta(x, b, s1, s2):
 
 def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, peat_depth):
-    
+
     def zeta_from_theta(x, b):
         return np.log(np.exp(s2*b) + s2*np.exp(-s1)*x) / s2
     
@@ -100,7 +99,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     # transmissivity is derived from this and written in terms of theta
     # This is the underlying storage coeff: S = exp(s1 + s2*zeta)
     # S is hidden in change from theta to h
-    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) * np.power(s2 * (theta + numerix.exp(s1 + s2*b)/s2), -1)
+    # D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) * np.power(s2 * (theta + numerix.exp(s1 + s2*b)/s2), -1)
     
     # Boussinesq eq. for theta
     eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=(numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * theta 
@@ -109,7 +108,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     
     theta_sol_list = [] # returned quantity
     
-    MAX_SWEEPS = 1000
+    MAX_SWEEPS = 100
     
     for day in range(ndays):
         
@@ -131,6 +130,9 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
             resOld=res
             res = eq.sweep(var=theta, dt=0.001)
             if abs(res - resOld) < 1e-7: break # it has reached the solution of the linear system
+        
+        if r==MAX_SWEEPS:
+            raise ValueError('Solution not converging after maximum number of sweeps')
         
         # Append to list
         theta_sol = theta.value
