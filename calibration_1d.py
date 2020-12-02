@@ -53,14 +53,13 @@ fn_weather_data = Path('data/weather_station_historic_data.xlsx')
 dfs_by_transects = get_data.main(fn_weather_data)
 
 # Choose transects
-relevant_transects = ['P002', 'P012', 'P015', 'P016', 'P018']
+relevant_transects = ['P002', 'P012', 'P016', 'P018']
 dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
  
 dfs_sliced_relevant_transects = {}
 # Slice by julian day
 jday_bounds = {'P002':[775, 817], # 660: 22/10/2019; 830: 9/4/2020
                'P012':[740, 771],
-               'P015':[747, 770],
                'P016':[707, 731],
                'P018':[815, 827]
                }
@@ -74,27 +73,23 @@ for key, df in dfs_relevant_transects.items():
 DEM_RESOLUTION = 100 # m/pixel
 sensor_locations = {'P002':[0, -1],
                     'P012':[0, -1],
-                    'P015':[0, -1],
                     'P016':[0, -1],
                     'P018':[0, -1]
                     }  # sensor locations wrt position in grid
 
 transect_length = {'P002': 120,
                    'P012': 190,
-                   'P015': 127,
                    'P016': 485,
                    'P018': 210
                    } # length in meters, derived from DTM
 
 surface_elev = {'P002':[4.68, 4.8],
                 'P012':[6.03, 6.24],
-                'P015':[9.06, 8.96],
                 'P016':[9.02, 9.1],
                 'P018':[9.94, 9.03]} # m above common ref point
 
 peat_depth = {'P002': -2,
               'P012': -8,
-              'P015': -8,
               'P016': -8,
               'P018': -8} # m below lowest peat surface elevation
 
@@ -134,10 +129,10 @@ def log_likelihood(params):
     
     log_like = 0 # result from this function. Will sum over all transects.
     
-    print(f'parameters: {params}')
+    # print(f'parameters: {params}')
     
     for transect_name, dic in data_dict.items():
-        print(f'Starting with transect: {transect_name}')
+        # print(f'Starting with transect: {transect_name}')
         df = dic['df']
         sensor_locations = dic['sen_loc']
         surface_elev = dic['surface_elev']
@@ -181,7 +176,7 @@ def log_likelihood(params):
             # TODO: the following line might not be perfect
             zeta_test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
         
-        print('continuing...')
+        # print('continuing...')
         try:
             simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
                                                         theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
@@ -196,9 +191,9 @@ def log_likelihood(params):
             sigma2 = SENSOR_MEASUREMENT_ERR ** 2
             log_like += -0.5 * np.sum((zeta_test_measurements - simulated_wtd) ** 2 / sigma2 +
                                       np.log(sigma2))
-            print(">>>>>> SIMULATED WTD = ", simulated_wtd)
-            print(">>>>>> ZETA_MEASUREMENTS = ", zeta_test_measurements)
-            print(">>>>>> CALIBRATION SUCCESSFUL. LOG_LIKELIHOOD = ", log_like)
+            # print(">>>>>> SIMULATED WTD = ", simulated_wtd)
+            # print(">>>>>> ZETA_MEASUREMENTS = ", zeta_test_measurements)
+            # print(">>>>>> CALIBRATION SUCCESSFUL. LOG_LIKELIHOOD = ", log_like)
     
     return log_like
  

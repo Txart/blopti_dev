@@ -8,13 +8,14 @@ import fipy as fp
 from fipy.tools import numerix
 import numpy as np
 import pandas as pd
-import fd # own fortran functions
+
 
 #%%
 
 def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
              boundary_values_left, boundary_values_right, precip, evapotra, ele_interp, peat_depth):
-
+    import fd # own fortran functions
+    
     REL_TOLERANCE = 1e-5
     ABS_TOLERANCE = 1e-5
     
@@ -139,7 +140,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     
     b_sensors = np.array([b[sl] for sl in sensor_loc[1:]])    
     zeta_from_theta_sol_sensors = zeta_from_theta(np.array(theta_sol_list), b_sensors)
-    print(zeta_from_theta_sol_sensors)
+    # print(zeta_from_theta_sol_sensors)
         
     return zeta_from_theta_sol_sensors
 

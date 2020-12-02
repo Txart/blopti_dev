@@ -175,7 +175,7 @@ for i in range(0,N_ITER):
     for canaln, coords in enumerate(c_to_r_list):
         if canaln == 0: 
             continue # because c_to_r_list begins at 1
-        wt_canal_arr[coords] = wt_canals[canaln]
+        wt_canal_arr[coords] = wt_canals[canaln]- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)
     
     
     wtd = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
