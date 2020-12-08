@@ -183,12 +183,12 @@ def log_likelihood(params):
         # print('continuing...')
         
         try:
-            with np.errstate(all='warn'):
-                simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
-                                                            theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+            with np.errstate(all='raise'):
+               # simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+               #                                             theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
                 
-                # simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
-                #                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+                 simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
+                                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
             
         except: # if error in hydro computation
             hydrology_error_count += 1
@@ -225,7 +225,7 @@ def log_probability(params):
  
 def gen_positions_for_walkers(n_walkers, n_params):
       # Generate based on true values + noise. TODO: change in the future!
-    ini_values = [0.1, 2.0, 1.0, 1.0] # s1, s2, t1, t2
+    ini_values = [1.0, 1.0, 7.0, 7.0] # s1, s2, t1, t2
     true_values = np.array([ini_values,]*n_walkers)
     noise = (np.random.rand(n_walkers, n_params) -0.5)*0.2 # random numbers in (-0.1, +0.1)
     return true_values + noise
