@@ -228,7 +228,7 @@ def gen_positions_for_walkers(n_walkers, n_params):
       # Generate based on true values + noise. TODO: change in the future!
     ini_values = [1.0, 1.0, 7.0, 7.0] # s1, s2, t1, t2
     true_values = np.array([ini_values,]*n_walkers)
-    noise = (np.random.rand(n_walkers, n_params) -0.5)*0.2 # random numbers in (-0.1, +0.1)
+    noise = (np.random.rand(n_walkers, n_params) -0.5)*20.0 # random numbers in (-10.0, + 10.0)
     return true_values + noise
  
 if N_CPU > 1:  
@@ -257,7 +257,8 @@ elif N_CPU == 1: # single processor
     backend = emcee.backends.HDFBackend(fname)
     backend.reset(nwalkers, ndim)
      
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend)
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend,
+                                    moves=[(emcee.moves.DEMove(), 0.8), (emcee.moves.DESnookerMove(), 0.2),])
     sampler.run_mcmc(pos, MCMC_STEPS, progress=True);
 
  

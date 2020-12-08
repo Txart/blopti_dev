@@ -14,18 +14,26 @@ import scipy.sparse
 
 import preprocess_data
 
+plotOpt = True
+
 #%%
 # Canal network and DEM data
 true_data = False
 if not true_data:
-    CNM = np.array([[0,0,0,0,0],
+    cnm = np.array([[0,0,0,0,0],
                     [1,0,0,0,0],
                     [0,1,0,0,0],
                     [0,0,1,0,0],
                     [0,0,0,1,0]])
     dem_nodes = np.array([10, 5, 4, 3, 2]) # m.a.s.l.
+    
+    cnm_sim = np.array([[0,1,0,0,0],
+                        [1,0,1,0,0],
+                        [0,1,0,1,0],
+                        [0,0,1,0,1],
+                        [0,0,0,1,0]])
 
-    CNM = scipy.sparse.csr_matrix(CNM) # In order to use the same sparse type as the big ass true adjacency matrix
+    CNM = scipy.sparse.csr_matrix(cnm) # In order to use the same sparse type as the big ass true adjacency matrix
 
 else:
     filenames_df = pd.read_excel('file_pointers.xlsx', header=2, dtype=str)
@@ -187,7 +195,8 @@ def dyn_netx(dt, dx, niter, h_ini):
     return hs
     
 #%%
-# Vectorized. 
+# Vectorized Directed
+
 
 def difference_operator(u, R, RR):
     return R.dot(u) - np.multiply(RR, u)
@@ -245,6 +254,62 @@ def diffusion_vecto(dt, dx, niter, h_ini):
         
     return(h)
 
+#%%
+# Vectorized undirected
+def compute_laplacian_from_adjacency(adj_matrix):
+    degree_matrix = np.diag(np.sum(adj_matrix, axis=1))
+    laplacian = adj_matrix - degree_matrix
+    
+    return laplacian
+
+
+def forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, source, diri_bc_bool):
+    h = h + dt*(b/dx*L @ h + a/dx**2 * L @ L @ h + source)
+    # BC
+    # No flux boundary conditions by default
+    h = np.where(diri_bc_bool, h_old, h) # Diri conditions
+    return h
+
+def undirected_adv_diff(dt, dx, a, b, niter, h_ini, A, source):
+    """
+    Advection and diffusion terms.
+    eq: dm/dt = am'' + bm' + source
+
+    """
+    h = h_ini[:] # Ini cond
+    h_old = h_ini[:]
+
+    L = compute_laplacian_from_adjacency(cnm_sim)
+    
+    for t in range(niter):
+       h = forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, source, diri_bc_bool)
+    return(h)
+
+# Plot solutions over time
+if plotOpt:
+    niter = 10000
+    dt = 1/niter
+    dx = 1
+    
+    h_adv = h_ini[:]
+    h_dif = h_ini[:]
+    h_advdif = h_ini[:]
+    L = compute_laplacian_from_adjacency(cnm_sim)
+    
+    plt.figure()
+    for t in range(niter):
+        if t % (int(niter/10))==0:
+            plt.plot(h_adv, color='blue', alpha=0.5, label='advection')
+            plt.plot(h_dif, color='orange', alpha=0.5, label='diffusion')
+            plt.plot(h_advdif, color='green', alpha=0.5, label='adv + diff')
+        h_adv = forward_Euler_adv_diff_single_step(h_adv, h_ini, dt, dx, 0, 1, L, source, diri_bc_bool)
+        h_dif = forward_Euler_adv_diff_single_step(h_dif, h_ini, dt, dx, 1, 0, L, source, diri_bc_bool)
+        h_advdif = forward_Euler_adv_diff_single_step(h_advdif, h_ini, dt, dx, 1, 1, L, source, diri_bc_bool)
+        
+    plt.legend()
+    plt.show()
+        
+        
 #%%
 # Check with standard 1d finite differences. Comparison only valid when network = 1d linear mesh
     
