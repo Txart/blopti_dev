@@ -19,12 +19,13 @@ plotOpt = True
  Params 
 """
 
-params = [1, 1, 10, 10]
+params = [0.1, 0.3, 4, 9]
 s1 = params[0]; s2 = params[1]
 t1 = params[2]; t2 = params[3]
 SOURCE = -3. # P- ET
 INI_VALUE = 0.5
 DIRI_BC = 0.3
+TIMESTEPS = 3
 
 #%%
 def cheb(N):
@@ -119,7 +120,7 @@ def RK4(v_old, dt):
  
 # Solve iteratively
 dt = 0.0001
-TIMESTEPS = 3
+
 niter = int(TIMESTEPS/dt)
 v_plot = [0]*(niter+1)
 v_plot[0] = v_old
@@ -171,6 +172,7 @@ v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=INI_VALUE, hasOld=True)
 v_fp.constrain(DIRI_BC, where=mesh.facesLeft) # left BC is always Dirichlet
 # v_fp.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight) # right: flux=0
 
+b = -4.
 
 def dif_fp(u):
     b=-4.
@@ -183,7 +185,7 @@ def dif_fp_simple(u):
     return 1.
 
 # Boussinesq eq. for theta
-eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=dif_fp(v_fp)) + SOURCE
+eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=(numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * v_fp + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * v_fp + numerix.exp(s1 + s2*b))) + SOURCE
 
 
 dt = 1.0
@@ -200,11 +202,11 @@ for i in range(TIMESTEPS):
 
     res = 0.0
     for r in range(MAX_SWEEPS):
-        # print(i, res)
         resOld=res
-        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
+        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=1.0)
         if abs(res - resOld) < 1e-5: break # it has reached to the solution of the linear system
     
+    print(r, res)
       # Append to list
     sol_fp[i+1] = copy.copy(v_fp.value[:])
     print(i, v_fp.value)
@@ -761,10 +763,6 @@ if plotOpt:
 
 #%% FORTRAN BUSINESS
     
-params = [0.5, 0.5, 7, 7]
-s1 = params[0]; s2 = params[1]
-t1 = params[2]; t2 = params[3]
-
 import fd # own fortran functions
 
 # TODO: USE np.asfortranarray()  before calling to fortran FUNCTIONS IN THE FUTURE
@@ -791,7 +789,7 @@ v_old = v_ini[:] # in the previous timestep
 b = np.ones(shape=v.shape) * (-4)
 
 # Relaxation parameter
-weight = 0.1
+weight = 0.01
 
 # J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
 
@@ -800,7 +798,7 @@ v_plot = [0]*(TIMESTEPS+1)
 v_plot[0] = v_ini[:]
 
 
-MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+MAX_INTERNAL_NITER = 100000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 for t in range(TIMESTEPS):
     # Update source
@@ -832,10 +830,16 @@ for t in range(TIMESTEPS):
             print(f'Solution of the Newton linear system in {i} iterations')
             break
     
+    # Early stopping criterion: thta cannot be negative
+    if np.any(v < 0) or np.any(np.isnan(v)):
+        print(v)
+        raise ValueError('NEGATIVE V FOUND, ABORTING')
+    
     v_old = v[:]
     v_plot[t+1] = v[:]
     print(i, v_old)
     
+print(f"Finite diff with fortran-constructed J and F (s) = {time.time() - c_start_time}")
     
 #%%
 # Compare fipy vs finite diff implicit 
@@ -862,7 +866,7 @@ if plotOpt:
     
     ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
     
-print(f"Finite diff with fortran-constructed J and F (s) = {time.time() - c_start_time}") 
+
 
 if plotOpt:
     # Waterfall plot

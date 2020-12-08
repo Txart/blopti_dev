@@ -56,6 +56,11 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
             if residue < ABS_TOLERANCE:
                 break
         
+        # Early stopping criterion: theta cannot be negative
+        if np.any(v < 0) or np.any(np.isnan(v)):
+            print(f'\n Number of run internal iterations: {i}')
+            raise ValueError('NEGATIVE V FOUND, ABORTING')
+        
         v_old = v[:]
         
         # Append to list
@@ -108,7 +113,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     
     theta_sol_list = [] # returned quantity
     
-    MAX_SWEEPS = 100
+    MAX_SWEEPS = 10000
     
     for day in range(ndays):
         
@@ -128,7 +133,7 @@ def hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         res = 0.0
         for r in range(MAX_SWEEPS):
             resOld=res
-            res = eq.sweep(var=theta, dt=0.001)
+            res = eq.sweep(var=theta, dt=dt)
             if abs(res - resOld) < 1e-7: break # it has reached the solution of the linear system
         
         if r==MAX_SWEEPS:
