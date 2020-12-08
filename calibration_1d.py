@@ -199,6 +199,7 @@ def log_likelihood(params):
             sigma2 = SENSOR_MEASUREMENT_ERR ** 2
             log_like += -0.5 * np.sum((zeta_test_measurements - simulated_wtd) ** 2 / sigma2 +
                                       np.log(sigma2))
+            print(f'\n SUCCESS! params = {params}')
             # print(">>>>>> SIMULATED WTD = ", simulated_wtd)
             # print(">>>>>> ZETA_MEASUREMENTS = ", zeta_test_measurements)
             # print(">>>>>> CALIBRATION SUCCESSFUL. LOG_LIKELIHOOD = ", log_like)
