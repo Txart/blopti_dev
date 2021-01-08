@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import time
 from pathlib import Path
 
+
 import preprocess_data,  utilities, hydro_standard, hydro_utils, read
 
 
@@ -175,7 +176,7 @@ for i in range(0,N_ITER):
     for canaln, coords in enumerate(c_to_r_list):
         if canaln == 0: 
             continue # because c_to_r_list begins at 1
-        wt_canal_arr[coords] = wt_canals[canaln]- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)
+        wt_canal_arr[coords] = wt_canals[canaln]
     
     
     wtd = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
@@ -213,11 +214,15 @@ for i in range(0,N_ITER):
 #%%
 # Translate WT to CO2 and subsidence
 # def CO2(wtd, peat_type):
-import rasterio
-# TODO put into initial file handling
-landcover_fn = 'data\Landcover2017_clip.tif'
-with rasterio.open(landcover_fn) as lc:
-    lc = lc.read(1)
+
+landcover_fn = Path(filenames_df[filenames_df.Content == 'landcover'].Path.values[0])
+lc = preprocess_data.read_preprocess_landcover(STUDY_AREA, landcover_fn)
+# Get coefficients and compute CO2
+co2_mult_coef, co2_add_coef = utilities.map_lc_number_to_lc_coef_in_co2_emission_formula(lc)
+co2 = utilities.compute_co2_from_WTD(wtd, co2_mult_coef, co2_add_coef)
+# Get coefs and compute subsidence
+subsi_mult_coef, subsi_add_coef = utilities.map_lc_number_to_lc_coef_in_subsidence_formula(lc)
+subsi = utilities.compute_subsi_from_WTD(wtd, subsi_mult_coef, subsi_add_coef)
     
     
 """

@@ -101,7 +101,12 @@ def read_preprocess_rasters(sa, wtd_old_rst_fn, can_rst_fn, dem_rst_fn, peat_typ
     
     return can_arr, wtd_old, dem, peat_type_arr, peat_depth_arr, blocks_arr, sensor_loc_arr
 
-
+def read_preprocess_landcover(sa, lc_fn):
+    lc = read_raster(lc_fn)
+    lc[lc<0] = 0 #NoData Values
+    lc = resize_study_area(sa, lc)
+    return lc
+    
     
 # Build the adjacency matrix up
 def _prop_to_neighbours(pixel_coords, rasterized_canals, dem, threshold=0.0):

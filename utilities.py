@@ -216,6 +216,105 @@ def from_raster_pos_to_LatLong(positions_in_canal_network, c_to_r_list, can_netw
     return latlongs
     
     
+def map_lc_number_to_lc_coef_in_co2_emission_formula(lc_raster):
+    # Coefficients taken from file 21092020_Formula for WTD conversion.xlsx
+    # created by Imam and uploaded to Asana
+    
+    lc_multiplicative_coef_co2 = np.zeros(shape=lc_raster.shape)
+    lc_additive_coef_co2 = np.zeros(shape=lc_raster.shape)
+    
+    lc_multiplicative_coef_co2[(lc_raster==2002) | (lc_raster==20041) | (lc_raster==20051)] = -98 # Degraded forests
+    lc_multiplicative_coef_co2[lc_raster==2005] = -98 # Primary forests
+    lc_multiplicative_coef_co2[lc_raster==2006] = -69 # Acacia plantation
+    lc_multiplicative_coef_co2[(lc_raster==2007) | (lc_raster==20071) | (lc_raster==20091) |
+                (lc_raster==20092) | (lc_raster==20093) | (lc_raster==2012) |
+                (lc_raster==20121) | (lc_raster==2014) | (lc_raster==20141) |
+                (lc_raster==50011)] = -84 # Deforested peatlands
+    lc_multiplicative_coef_co2[lc_raster==2010] = -77.07 # Other Plantations
+    
+    lc_additive_coef_co2[(lc_raster==2002) | (lc_raster==20041) | (lc_raster==20051)] = 0 # Degraded forests
+    lc_additive_coef_co2[lc_raster==2005] = 0 # Primary forests
+    lc_additive_coef_co2[lc_raster==2006] = 21 # Acacia plantation
+    lc_additive_coef_co2[(lc_raster==2007) | (lc_raster==20071) | (lc_raster==20091) |
+                (lc_raster==20092) | (lc_raster==20093) | (lc_raster==2012) |
+                (lc_raster==20121) | (lc_raster==2014) | (lc_raster==20141) |
+                (lc_raster==50011)] = 9 # Deforested peatlands
+    lc_additive_coef_co2[lc_raster==2010] = 19.8 # Other Plantations
+
+    return lc_multiplicative_coef_co2, lc_additive_coef_co2
+
+def map_lc_number_to_lc_coef_in_subsidence_formula(lc_raster):
+    # Coefficients taken from file 21092020_Formula for WTD conversion.xlsx
+    # created by Imam and uploaded to Asana
+    
+    lc_multiplicative_coef_subsi = np.zeros(shape=lc_raster.shape)
+    lc_additive_coef_subsi = np.zeros(shape=lc_raster.shape)
+    
+    lc_multiplicative_coef_subsi = np.zeros(shape=lc_raster.shape)
+    lc_multiplicative_coef_subsi[(lc_raster==2002) | (lc_raster==20041) | (lc_raster==20051)] = -6.54 # Degraded forests
+    lc_multiplicative_coef_subsi[lc_raster==2005] = -7.06 # Primary forests
+    lc_multiplicative_coef_subsi[lc_raster==2006] = -4.98 # Acacia plantation
+    lc_multiplicative_coef_subsi[(lc_raster==2007) | (lc_raster==20071) | (lc_raster==20091) |
+                (lc_raster==20092) | (lc_raster==20093) | (lc_raster==2012) |
+                (lc_raster==20121) | (lc_raster==2014) | (lc_raster==20141) |
+                (lc_raster==50011)] = -5.98 # Deforested peatlands
+    lc_multiplicative_coef_subsi[lc_raster==2010] = -4.98 # Other Plantations, same as Acacia
+    
+    lc_additive_coef_subsi = np.zeros(shape=lc_raster.shape)
+    lc_additive_coef_subsi[(lc_raster==2002) | (lc_raster==20041) | (lc_raster==20051)] = 0.35 # Degraded forests
+    lc_additive_coef_subsi[lc_raster==2005] = 0 # Primary forests
+    lc_additive_coef_subsi[lc_raster==2006] = 1.5 # Acacia plantation
+    lc_additive_coef_subsi[(lc_raster==2007) | (lc_raster==20071) | (lc_raster==20091) |
+                (lc_raster==20092) | (lc_raster==20093) | (lc_raster==2012) |
+                (lc_raster==20121) | (lc_raster==2014) | (lc_raster==20141) |
+                (lc_raster==50011)] = 0.69 # Deforested peatlands
+    lc_additive_coef_subsi[lc_raster==2010] = 1.5 # Other Plantations, same as Acacia
+    
+    
+    return lc_multiplicative_coef_subsi, lc_additive_coef_subsi
+    
+def compute_co2_from_WTD(wtd, lc_multiplicative_coef_co2, lc_additive_coef_co2):
+    wtd_hooijer_capped = wtd[:]
+    wtd_carlson_capped = wtd[:]
+    
+    # WTD are capped because wtd for the co2 model in papers do not range further than -1.25
+    # papers: hooijer, carlson, evans. From Imam's formula as discussed in Asana
+    wtd_hooijer_capped[wtd < -1.25] = -1.25
+    wtd_carlson_capped[wtd < -1.1] = -1.1
+    
+    co2_hooijer = lc_additive_coef_co2 + lc_multiplicative_coef_co2 * wtd_hooijer_capped #tCO2eq/ha/yr
+    co2_carlson = lc_additive_coef_co2 + lc_multiplicative_coef_co2 * wtd_carlson_capped
+    
+    co2 = co2_hooijer
+    carlson_mask = np.where(lc_multiplicative_coef_co2==-77.07)
+    co2[carlson_mask] = co2_carlson[carlson_mask]
+    
+    return co2
+
+def compute_subsi_from_WTD(wtd, lc_multiplicative_coef_subsi, lc_additive_coef_subsi):
+    wtd_hooijer_capped = wtd[:]
+    wtd_evans_capped = wtd[:]
+    
+    # WTD are capped because wtd for the co2 model in papers do not range further than -1.25
+    # papers: hooijer, carlson, evans. From Imam's formula as discussed in Asana
+    wtd_hooijer_capped[wtd < -1.25] = -1.25
+    wtd_evans_capped[wtd < -1.2] = -1.2
+    
+    subsi_hooijer = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd_hooijer_capped #tCO2eq/ha/yr
+    subsi_evans = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd_evans_capped
+    
+    subsi = subsi_hooijer
+    evans_mask = np.where(lc_multiplicative_coef_subsi==-6.54)
+    subsi[evans_mask] = subsi_evans[evans_mask]
+    
+    return subsi
+    
+    
+    subsi = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd # cm/yr
+    subsi = subsi/100 #m/yr
+    
+    return subsi
+
     
     
     
