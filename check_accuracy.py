@@ -64,6 +64,7 @@ def solve_with_given_N(N, params):
 #%%
 import fipy as fp
 from fipy.tools import numerix
+import copy
 
 def solve_fipy_with_given_N(N, params):
     
@@ -72,8 +73,6 @@ def solve_fipy_with_given_N(N, params):
     
     dx = 2.0/N
     dt = 1.0
-    
-    RELAXATION = 1/N
 
     f_start_time = time.time()
     
@@ -102,7 +101,7 @@ def solve_fipy_with_given_N(N, params):
     for r in range(MAX_SWEEPS):
         # print(i, res)
         resOld=res
-        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=RELAXATION)
+        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
         if abs(res - resOld) < abs_tolerance: break # it has reached to the solution of the linear system
 
     
@@ -156,9 +155,8 @@ for nparam, params in enumerate(rnd_params):
     plt.figure(nparam, figsize=(8, 6), dpi=400)
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N+1)
-        x_fp = np.linspace(0,2,N)
         plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
-        plt.plot(x_fp, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+        plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
         
     
     plt.title(params)
@@ -172,10 +170,9 @@ time_avgs = np.mean(times_np, axis=0)
 time_avgs_fipy = np.mean(times_fipy_np, axis=0)
 
 plt.figure('times')
-plt.plot(Ns, time_avgs, 'o', label='implicit + fortran')
-plt.plot(Ns, time_avgs_fipy, 'x', label='fipy')
+plt.plot(Ns, time_avgs, 'o')
+plt.plot(Ns, time_avgs_fipy, 'x')
 plt.title('Comp times')
-plt.legend()
 plt.savefig('acc_plots/acc_comp_times.png')
 
     
