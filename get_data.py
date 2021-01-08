@@ -89,6 +89,8 @@ def datetime_to_julian(date_string):
         add_year = 1
     elif dt.strftime('%y')=='20':
         add_year = 2
+    elif dt.strftime('%y')=='21':
+        add_year = 3
     elif dt.strftime('%y')=='17':
         add_year = -1    
     else:
@@ -281,6 +283,12 @@ def main(fn_weather_data):
     daily_wtd_df = aggregate_wtd_to_daily(wt_df)
     daily_weather_df = aggregate_weather_to_daily(weather_df)
     daily_weather_df = compute_and_append_ET(daily_weather_df)
+    
+    """
+     Change units P and ET from mm/day to m/day
+    """
+    daily_weather_df['P'] = daily_weather_df['P']/1000
+    daily_weather_df['ET'] = daily_weather_df['ET']/1000
     
     """
      Organize sensor data into dictionary
