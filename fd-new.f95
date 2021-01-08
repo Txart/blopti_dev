@@ -40,7 +40,7 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
     ! BC
     ! Diri in x=0
     J(1,1) = 1
-    F(1) = diri_bc
+    F(1) = 0.0
     ! Neumann with diffusivity(u(L))*u'(L)=0 in x=N
     aL = dif(v(N), b(N))
     J(N+1,N+1) = e*(-dif_prime(v(N), b(N))*v(N) + 2*dif_prime(v(N+1), b(N+1))*v(N+1) &

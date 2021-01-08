@@ -149,9 +149,12 @@ def aggregate_weather_to_daily(weather_df):
     daily_weather_df['windspeed'] = weather_df.groupby('Date', sort=False)['windspeed'].mean()
     daily_weather_df['windspeed'] = daily_weather_df['windspeed'].apply(lambda x: x*1000/3600) # from km/h to m/s
     daily_weather_df['air_pressure'] = weather_df.groupby('Date', sort=False)['Barometer - mb'].mean().apply(lambda x: x/10) # mbar to kPa
-    daily_weather_df['ET'] = daily_weather_df.apply(compute_ET_dataframe, axis=1)
     
     daily_weather_df.index = daily_weather_df['julian_day']
+    return daily_weather_df
+
+def compute_and_append_ET(daily_weather_df):
+    daily_weather_df['ET'] = daily_weather_df.apply(compute_ET_dataframe, axis=1)
     return daily_weather_df
 
 def wtd_dictionary_of_dataframes(wtd_df):
@@ -277,6 +280,7 @@ def main(fn_weather_data):
     """
     daily_wtd_df = aggregate_wtd_to_daily(wt_df)
     daily_weather_df = aggregate_weather_to_daily(weather_df)
+    daily_weather_df = compute_and_append_ET(daily_weather_df)
     
     """
      Organize sensor data into dictionary

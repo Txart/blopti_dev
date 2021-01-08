@@ -10,7 +10,18 @@ import copy
 import random
 import scipy.signal
 
+#%%
 
+def get_already_built_block_positions(blocks_arr, labelled_canals):
+    labelled_blocks = blocks_arr * labelled_canals
+    labelled_blocks = labelled_blocks.astype(dtype=int)
+    return tuple(labelled_blocks[labelled_blocks.nonzero()].tolist())
+
+def get_sensor_loc_array_indices(sensor_loc_arr):
+    locs = np.array(sensor_loc_arr.nonzero())
+    loc_pairs = locs.transpose()
+    return loc_pairs.tolist()
+    
 
 def peel_raster(raster, catchment_mask):
     """

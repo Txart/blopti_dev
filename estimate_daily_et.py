@@ -185,15 +185,15 @@ if __name__ == '__main__':
     
     plt.legend()
 #%%
-# Save results in file
+    # Save results in file
+        
+    import pandas as pd
     
-import pandas as pd
-
-jdays = [i for i in range(1,366)]
-df = pd.DataFrame(list(zip(jdays, year_ETa)), columns=['jday', 'ET'])
-
-fname = 'ET_modelled.xlsx'
-df.to_excel(fname)
+    jdays = [i for i in range(1,366)]
+    df = pd.DataFrame(list(zip(jdays, year_ETa)), columns=['jday', 'ET'])
+    
+    fname = 'ET_modelled.xlsx'
+    df.to_excel(fname)
 
 
 

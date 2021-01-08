@@ -53,14 +53,13 @@ fn_weather_data = Path('data/weather_station_historic_data.xlsx')
 dfs_by_transects = get_data.main(fn_weather_data)
 
 # Choose transects
-relevant_transects = ['P002', 'P012', 'P015', 'P016', 'P018']
+relevant_transects = ['P002', 'P012', 'P016', 'P018']
 dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
  
 dfs_sliced_relevant_transects = {}
 # Slice by julian day
 jday_bounds = {'P002':[775, 817], # 660: 22/10/2019; 830: 9/4/2020
                'P012':[740, 771],
-               'P015':[747, 770],
                'P016':[707, 731],
                'P018':[815, 827]
                }
@@ -74,27 +73,23 @@ for key, df in dfs_relevant_transects.items():
 DEM_RESOLUTION = 100 # m/pixel
 sensor_locations = {'P002':[0, -1],
                     'P012':[0, -1],
-                    'P015':[0, -1],
                     'P016':[0, -1],
                     'P018':[0, -1]
                     }  # sensor locations wrt position in grid
 
 transect_length = {'P002': 120,
                    'P012': 190,
-                   'P015': 127,
                    'P016': 485,
                    'P018': 210
                    } # length in meters, derived from DTM
 
 surface_elev = {'P002':[4.68, 4.8],
                 'P012':[6.03, 6.24],
-                'P015':[9.06, 8.96],
                 'P016':[9.02, 9.1],
                 'P018':[9.94, 9.03]} # m above common ref point
 
 peat_depth = {'P002': -2,
               'P012': -8,
-              'P015': -8,
               'P016': -8,
               'P018': -8} # m below lowest peat surface elevation
 
@@ -120,6 +115,8 @@ MCMC parameter estimation
 nx = 10
 dt = 1. # in days. FiPy solution is implicit in time, so timestep should be 1 day.
 
+hydrology_error_count = 0
+
 def theta_from_zeta(z, s1, s2, b):
     theta = np.exp(s1)/s2 * (np.exp(s2*z) - np.exp(s2*b))
     return theta
@@ -130,14 +127,16 @@ SENSOR_MEASUREMENT_ERR = 0.05 # metres. Theoretically, 1mm
  
 def log_likelihood(params):
     
+    global hydrology_error_count
+    
     s1 = params[0]; s2 = params[1]
     
     log_like = 0 # result from this function. Will sum over all transects.
     
-    print(f'parameters: {params}')
+    # print(f'parameters: {params}')
     
     for transect_name, dic in data_dict.items():
-        print(f'Starting with transect: {transect_name}')
+        # print(f'Starting with transect: {transect_name}')
         df = dic['df']
         sensor_locations = dic['sen_loc']
         surface_elev = dic['surface_elev']
@@ -181,17 +180,29 @@ def log_likelihood(params):
             # TODO: the following line might not be perfect
             zeta_test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
         
-        print('continuing...')
+        # print('continuing...')
+        
         try:
-            simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
-                                                        theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+            with np.errstate(all='raise'):
+                # simulated_wtd = hydro_calibration.hydro_1d_fipy(theta_ini, nx, dx, dt, params, ndays, sensor_locations,
+                #                                             theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+                
+                  simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
+                                                                         theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+            
         except: # if error in hydro computation
-            print("###### SOME ERROR IN HYDRO #######")
+            hydrology_error_count += 1
+            print( f"###### ERROR {hydrology_error_count} IN HYDRO #######")
             return -np.inf
         else:
+            # print('#### SUCCESS!')
             sigma2 = SENSOR_MEASUREMENT_ERR ** 2
             log_like += -0.5 * np.sum((zeta_test_measurements - simulated_wtd) ** 2 / sigma2 +
                                       np.log(sigma2))
+            print(f'\n SUCCESS! params = {params}')
+            # print(">>>>>> SIMULATED WTD = ", simulated_wtd)
+            # print(">>>>>> ZETA_MEASUREMENTS = ", zeta_test_measurements)
+            # print(">>>>>> CALIBRATION SUCCESSFUL. LOG_LIKELIHOOD = ", log_like)
     
     return log_like
  
@@ -215,14 +226,12 @@ def log_probability(params):
  
 def gen_positions_for_walkers(n_walkers, n_params):
       # Generate based on true values + noise. TODO: change in the future!
-    ini_values = [0.1, 2.0, 1.0, 1.0] # s1, s2, t1, t2
+    ini_values =  [5.02738472,  0.79876819, 33.43180506, 15.04192401] # s1, s2, t1, t2
     true_values = np.array([ini_values,]*n_walkers)
-    noise = (np.random.rand(n_walkers, n_params) -0.5)*0.2 # random numbers in (-0.1, +0.1)
+    noise = (np.random.rand(n_walkers, n_params) -0.5)*20.0 # random numbers in (-10.0, + 10.0)
     return true_values + noise
  
-if N_CPU > 1:
-    # Turn off NumPy automatic parallelization
-    
+if N_CPU > 1:  
     with Pool(N_CPU) as pool:
             
         pos = gen_positions_for_walkers(N_WALKERS, N_PARAMS)
@@ -233,7 +242,7 @@ if N_CPU > 1:
 
         fname = "mcmc_result_chain.h5"
         backend = emcee.backends.HDFBackend(fname)
-        # backend.reset(nwalkers, ndim) # commenting this line: continue from stored markovchain
+        backend.reset(nwalkers, ndim) # commenting this line: continue from stored markovchain
         
         sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, pool=pool,
                                         backend=backend)
@@ -248,7 +257,8 @@ elif N_CPU == 1: # single processor
     backend = emcee.backends.HDFBackend(fname)
     backend.reset(nwalkers, ndim)
      
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend)
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability, backend=backend,
+                                    moves=[(emcee.moves.DEMove(), 0.8), (emcee.moves.DESnookerMove(), 0.2),])
     sampler.run_mcmc(pos, MCMC_STEPS, progress=True);
 
  

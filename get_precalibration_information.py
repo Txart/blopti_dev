@@ -103,22 +103,6 @@ for transect_name, transect_df in dfs_by_transects.items():
 
 
 
-#%%
-def f1():
-    for i in range(0,3):
-        try:
-            raise ValueError
-        except:
-            print('some errorin try')
-            return 2
-        else:
-            print('else!')
-            return 3
-
-    return 4
-
-
-
 
 
 

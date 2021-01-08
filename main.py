@@ -47,22 +47,24 @@ filenames_df = pd.read_excel('file_pointers.xlsx', header=2, dtype=str)
 dem_rst_fn = Path(filenames_df[filenames_df.Content == 'DEM'].Path.values[0])
 can_rst_fn = Path(filenames_df[filenames_df.Content == 'canal_raster'].Path.values[0])
 peat_depth_rst_fn = Path(filenames_df[filenames_df.Content == 'peat_depth_raster'].Path.values[0])
+blocks_fn = Path(filenames_df[filenames_df.Content == 'canal_blocks_raster'].Path.values[0])
+sensor_loc_fn = Path(filenames_df[filenames_df.Content == 'sensor_locations'].Path.values[0])
 params_fn = Path(filenames_df[filenames_df.Content == 'parameters'].Path.values[0])
 WTD_folder = Path(filenames_df[filenames_df.Content == 'WTD_input_and_output_folder'].Path.values[0])
 weather_fn = Path(filenames_df[filenames_df.Content == 'historic_precipitation'].Path.values[0])
 # Choose smaller study area
 STUDY_AREA = (0,-1), (0,-1)
 
-
-
-if 'CNM' and 'cr' and 'c_to_r_list' not in globals():
-    CNM, cr, c_to_r_list = preprocess_data.gen_can_matrix_and_raster_from_raster(sa=STUDY_AREA, can_rst_fn=can_rst_fn, dem_rst_fn=dem_rst_fn)
-
-#else:
-#    print "Canal adjacency matrix and raster loaded from memory."
-    
 wtd_old_fn = dem_rst_fn # not reading from previous wtd raster
-_, wtd_old , dem, peat_type_arr, peat_depth_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn)
+can_arr, wtd_old , dem, peat_type_arr, peat_depth_arr, blocks_arr, sensor_loc_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn, blocks_fn, sensor_loc_fn)
+
+sensor_loc_indices = utilities.get_sensor_loc_array_indices(sensor_loc_arr)
+
+if 'CNM' and 'labelled_canals' and 'c_to_r_list' not in globals():
+    labelled_canals = preprocess_data.label_canal_pixels(can_arr, dem)
+    CNM, c_to_r_list = preprocess_data.gen_can_matrix_and_label_map(labelled_canals, dem)
+ 
+built_block_positions = utilities.get_already_built_block_positions(blocks_arr, labelled_canals)
 
 PARAMS_df = preprocess_data.read_params(params_fn)
 BLOCK_HEIGHT = PARAMS_df.block_height[0]; CANAL_WATER_LEVEL = PARAMS_df.canal_water_level[0]
@@ -89,6 +91,10 @@ peat_bottom_elevation = - peat_depth_arr * catchment_mask # meters with respect 
 
 h_to_tra_and_C_dict, K = hydro_utils.peat_map_interp_functions(Kadjust=KADJUST) # Load peatmap soil types' physical properties dictionary
 
+weather_stations_coordinates = [(100, 100), (200,200), (234, 142)] # TODO: change with coords from data
+weather_station_mask, ws_mask_dict = preprocess_data.nearest_neighbors_mask_from_coordinates(dem.shape, weather_stations_coordinates)
+# Then, weather_station_mask is to be used to mask the source term in the equation.
+
 # Plot K
 #import matplotlib.pyplot as plt
 #plt.figure(); z = np.linspace(0.0, -20.0, 400); plt.plot(K,z); plt.title('K')
@@ -111,6 +117,7 @@ n_canals = len(c_to_r_list)
 # HANDCRAFTED WATER LEVEL IN CANALS. CHANGE WITH MEASURED, IDEALLY.
 oWTcanlist = [x - CANAL_WATER_LEVEL for x in srfcanlist]
 
+include_already_built_blocks = True
 hand_made_dams = False # compute performance of cherry-picked locations for dams.
 quasi_random = False # Don't allow overlapping blocks
 """
@@ -130,6 +137,9 @@ for i in range(0,N_ITER):
         hand_picked_dams = (11170, 10237, 10514, 2932, 4794, 8921, 4785, 5837, 7300, 6868) # rule-based approach
         hand_picked_dams = [6959, 901, 945, 9337, 10089, 7627, 1637, 7863, 7148, 7138, 3450, 1466, 420, 4608, 4303, 6908, 9405, 8289, 7343, 2534, 9349, 6272, 8770, 2430, 2654, 6225, 11152, 118, 4013, 3381, 6804, 6614, 7840, 9839, 5627, 3819, 7971, 402, 6974, 7584, 3188, 8316, 1521, 856, 770, 6504, 707, 5478, 5512, 1732, 3635, 1902, 2912, 9220, 1496, 11003, 8371, 10393, 2293, 4901, 5892, 6110, 2118, 4485, 6379, 10300, 6451, 5619, 9871, 9502, 1737, 4368, 7290, 9071, 11222, 3085, 2013, 5226, 597, 5038]
         damLocation = hand_picked_dams
+    
+    if include_already_built_blocks:
+        damLocation = damLocation + list(built_block_positions)
     
     wt_canals = utilities.place_dams(oWTcanlist, srfcanlist, BLOCK_HEIGHT, damLocation, CNM)
     """
@@ -165,12 +175,12 @@ for i in range(0,N_ITER):
     for canaln, coords in enumerate(c_to_r_list):
         if canaln == 0: 
             continue # because c_to_r_list begins at 1
-        wt_canal_arr[coords] = wt_canals[canaln]
+        wt_canal_arr[coords] = wt_canals[canaln]- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)- fp.ImplicitSourceTerm(boundary_mask*largeValue) + boundary_mask*largeValue*np.ravel(boundary_arr)
     
     
     wtd = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
                                                       peat_type_mask=peat_type_masked, httd=h_to_tra_and_C_dict, tra_to_cut=tra_to_cut, sto_to_cut=sto_to_cut,
-                                                      diri_bc=DIRI_BC, neumann_bc = None, plotOpt=True, remove_ponding_water=True,
+                                                      diri_bc=None, neumann_bc = 0., plotOpt=True, remove_ponding_water=True,
                                                       P=P, ET=ET, dt=TIMESTEP)
     
     

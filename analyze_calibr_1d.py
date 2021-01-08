@@ -126,6 +126,7 @@ def corner_plot(samples, savefig=True):
 fname = r"C:\Users\03125327\Desktop\mcmc_result_chain.h5"
 
 reader = read_from_backend(fname)
+flat_samples = reader.get_chain(flat=True)
 fat_samples = reader.get_chain(flat=False)
 
 #%% 
@@ -148,6 +149,20 @@ axes[-1].set_xlabel("step number");
 
 tau = reader.get_autocorr_time()
 print(tau)
+
+# Even if logprobs give -inf, show values of parameters explored
+s1s = flat_samples[:,0]
+s2s = flat_samples[:,1]
+t1s = flat_samples[:,2]
+t2s = flat_samples[:,3]
+
+plt.figure()
+plt.plot(s1s, 'o', ms=1 ,label='s1')
+plt.plot(s2s, 'o', ms=1 ,label='s2')
+plt.plot(t1s, 'o', ms=1 ,label='t1')
+plt.plot(t2s, 'o', ms=1 ,label='t2')
+
+plt.legend()
 
 #%%
 # Thin and discard samples
