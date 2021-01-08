@@ -226,7 +226,7 @@ def log_probability(params):
  
 def gen_positions_for_walkers(n_walkers, n_params):
       # Generate based on true values + noise. TODO: change in the future!
-    ini_values = [1.0, 1.0, 7.0, 7.0] # s1, s2, t1, t2
+    ini_values =  [5.02738472,  0.79876819, 33.43180506, 15.04192401] # s1, s2, t1, t2
     true_values = np.array([ini_values,]*n_walkers)
     noise = (np.random.rand(n_walkers, n_params) -0.5)*20.0 # random numbers in (-10.0, + 10.0)
     return true_values + noise

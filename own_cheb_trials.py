@@ -19,10 +19,10 @@ plotOpt = True
  Params 
 """
 
-params = [0.1, 0.3, 4, 9]
+params = [ -0.9, 1, 1.6, 10]
 s1 = params[0]; s2 = params[1]
 t1 = params[2]; t2 = params[3]
-SOURCE = -3. # P- ET
+SOURCE = -0.003 # P- ET
 INI_VALUE = 0.5
 DIRI_BC = 0.3
 TIMESTEPS = 3
@@ -135,7 +135,7 @@ for i in range(niter):
 
 print(f"Cheb time(s) = {time.time() - c_start_time}")  
 
-if plotOpt:
+if False:
     # Waterfall plot
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -1028,6 +1028,15 @@ def S(u, b, s1, s2):
 def T(u, b, s1, s2, t1, t2):
     return np.exp(t1)/t2 * (np.power(s2 * np.exp(-s1) * u + np.exp(s2*b), t2/s2) - np.exp(t2*b))
 
+def S_of_zeta(zeta, b, s1, s2):
+    return np.exp(s1 + s2*zeta)
+
+def T_of_zeta(zeta, b, t1, t2):
+    return np.exp(t1)/t2 * (np.exp(t2*zeta) - np.exp(t2*b))
+
+def dif_of_zeta(zeta, b, s1, s2, t1, t2):
+    return T_of_zeta(zeta, b, t1, t2)/S_of_zeta(zeta, b, s1, s2)
+
 def dif(u, b, s1, s2, t1, t2):
     # Diffusivity
     return T(u, b, s1, s2, t1, t2) * np.power(S(u, b, s1, s2), -1)
@@ -1045,6 +1054,9 @@ def dif_prime(u, b, s1, s2, t1, t2):
 
 def zeta_from_theta(x, b, s1, s2):
     return np.log(np.exp(s2*b) + s2*np.exp(-s1)*x) / s2
+
+def theta_from_zeta(zeta, b, s1, s2):
+    return np.exp(s1)/s2 * (np.exp(s2*zeta) - np.exp(s2*b))
 
 
 
@@ -1064,13 +1076,13 @@ if inSpyder and plotOpt:
     ax_t2 = fig.add_axes([0.3, 0.94, 0.4, 0.05])
     
     # Create sliders
-    s_s1 = Slider(ax=ax_s1, label='s1 ', valmin=-5, valmax=10.0,
+    s_s1 = Slider(ax=ax_s1, label='s1 ', valmin=-5, valmax=100.0,
                   valfmt=' %1.1f', facecolor='#cc7000')
-    s_s2 = Slider(ax=ax_s2, label='s2 ', valmin=-5, valmax=10, 
+    s_s2 = Slider(ax=ax_s2, label='s2 ', valmin=-5, valmax=100, 
                  valinit=1, valfmt='%1.1f ', facecolor='#cc7000')
-    s_t1 = Slider(ax=ax_t1, label='t1 ', valmin=-5, valmax=10.0,
+    s_t1 = Slider(ax=ax_t1, label='t1 ', valmin=-5, valmax=100.0,
                   valfmt=' %1.1f', facecolor='#cc7000')
-    s_t2 = Slider(ax=ax_t2, label='t2 ', valmin=-5, valmax=10, 
+    s_t2 = Slider(ax=ax_t2, label='t2 ', valmin=-5, valmax=100, 
                  valinit=1, valfmt='%1.1f ', facecolor='#cc7000')
     
     f_S, = ax.plot(theta, S(theta, -4, s1, s2), label='S')
@@ -1099,7 +1111,9 @@ if inSpyder and plotOpt:
     s_t1.on_changed(update_theta)
     s_t2.on_changed(update_theta)
 
-    # zeta interactive plots
+    # zeta interactive plots\
+    zeta = np.linspace(-4, 1, num=100)
+    theta = theta_from_zeta(zeta, -4, s1, s2)
     figz = plt.figure()
     axz = figz.add_subplot(111)
     axz.set_xlim(-4,100)
@@ -1111,20 +1125,20 @@ if inSpyder and plotOpt:
     axz_t2 = figz.add_axes([0.3, 0.73, 0.4, 0.05])
     
     # Create sliders
-    sz_s1 = Slider(ax=axz_s1, label='s1 ', valmin=-5, valmax=10.0,
+    sz_s1 = Slider(ax=axz_s1, label='s1 ', valmin=-10, valmax=10.0,
+                  valfmt=' %1.3f', facecolor='#cc7000')
+    sz_s2 = Slider(ax=axz_s2, label='s2 ', valmin=-2, valmax=5, 
+                 valinit=1, valfmt='%1.3f ', facecolor='#cc7000')
+    sz_t1 = Slider(ax=axz_t1, label='t1 ', valmin=-5, valmax=100.0,
                   valfmt=' %1.1f', facecolor='#cc7000')
-    sz_s2 = Slider(ax=axz_s2, label='s2 ', valmin=-5, valmax=10, 
-                 valinit=1, valfmt='%1.1f ', facecolor='#cc7000')
-    sz_t1 = Slider(ax=axz_t1, label='t1 ', valmin=-5, valmax=10.0,
-                  valfmt=' %1.1f', facecolor='#cc7000')
-    sz_t2 = Slider(ax=axz_t2, label='t2 ', valmin=-5, valmax=10, 
+    sz_t2 = Slider(ax=axz_t2, label='t2 ', valmin=-5, valmax=100, 
                  valinit=1, valfmt='%1.1f ', facecolor='#cc7000')
     
-    f_Sz, = axz.plot(S(theta, -4, s1, s2), zeta, label='S')
-    f_zz, = axz.plot(theta, zeta, label='theta')
-    f_Tz, = axz.plot(T(theta, -4, s1, s2, t1, t2), zeta, label='T')
-    f_dz, = axz.plot(dif(theta, -4, s1, s2, t1, t2), zeta, label='dif')
-    f_dpz, = axz.plot(dif_prime(theta, -4, s1, s2, t1, t2), zeta, label='dif_prime')
+    f_Sz, = axz.plot(S_of_zeta(zeta, -4, s1, s2), zeta, label='S')
+    f_zz, = axz.plot(theta_from_zeta(zeta, -4, s1, s2), zeta, label='theta')
+    f_Tz, = axz.plot(T_of_zeta(zeta, -4, t1, t2), zeta, label='T')
+    f_dz, = axz.plot(dif_of_zeta(zeta, -4, s1, s2, t1, t2), zeta, label='dif')
+    # f_dpz, = axz.plot(dif_prime(theta, -4, s1, s2, t1, t2), zeta, label='dif_prime')
     axz.set_title('function vs zeta')
     axz.set_ylabel('zeta')
     axz.legend()
@@ -1135,11 +1149,11 @@ if inSpyder and plotOpt:
         t1 = sz_t1.val
         t2 = sz_t2.val
         
-        f_Sz.set_data(S(theta, -4, s1, s2), zeta)
-        f_zz.set_data(theta, zeta_from_theta(theta, -4, s1, s2))
-        f_Tz.set_data(T(theta, -4, s1, s2, t1, t2), zeta)
-        f_dz.set_data(dif(theta, -4, s1, s2, t1, t2), zeta)
-        f_dpz.set_data(dif_prime(theta, -4, s1, s2, t1, t2), zeta)
+        f_Sz.set_data(S_of_zeta(zeta, -4, s1, s2), zeta)
+        f_zz.set_data(theta_from_zeta(zeta, -4, s1, s2), zeta)
+        f_Tz.set_data(T_of_zeta(zeta, -4, t1, t2), zeta)
+        f_dz.set_data(dif_of_zeta(zeta, -4, s1, s2, t1, t2), zeta)
+        # f_dpz.set_data(dif_prime(theta, -4, s1, s2, t1, t2), zeta)
     
     sz_s1.on_changed(update_zeta)
     sz_s2.on_changed(update_zeta)

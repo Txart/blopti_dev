@@ -11,6 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import scipy.sparse
+import warnings
 
 import preprocess_data
 
@@ -27,11 +28,7 @@ if not true_data:
                     [0,0,0,1,0]])
     dem_nodes = np.array([10, 5, 4, 3, 2]) # m.a.s.l.
     
-    cnm_sim = np.array([[0,1,0,0,0],
-                        [1,0,1,0,0],
-                        [0,1,0,1,0],
-                        [0,0,1,0,1],
-                        [0,0,0,1,0]])
+    cnm_sim = cnm + cnm.T
 
     CNM = scipy.sparse.csr_matrix(cnm) # In order to use the same sparse type as the big ass true adjacency matrix
 
@@ -111,16 +108,20 @@ h_ini = dem_nodes + cwl_ini
 #%%
 # create graph
 g = nx.DiGraph(incoming_graph_data=CNM.T) # transposed for dynamics!
-g_un = nx.Graph(g) # symmetric matrix, undirected graph. Useful for dynamics 
 
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(h_ini)}, name='h_old')
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(h_ini)}, name='h_new')
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(dem_nodes)}, name='ele')   
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_nodes)}, name='diri_bc')
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_bool)}, name='diri_bool')
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_nodes)}, name='neumann_bc')
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_bool)}, name='neumann_bool')
-nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(source)}, name='source')      
+def initialize_graph_values(g, h_ini, dem_nodes, diri_bc_nodes, diri_bc_bool, neumann_bc_nodes, neumann_bc_bool, source):
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(h_ini)}, name='h_old')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(h_ini)}, name='h_new')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(dem_nodes)}, name='ele')   
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_nodes)}, name='diri_bc')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_bool)}, name='diri_bool')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_nodes)}, name='neumann_bc')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_bool)}, name='neumann_bool')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(source)}, name='source')
+    
+    return 0
+
+g_un = nx.Graph(g) # symmetric matrix, undirected graph. Useful for dynamics    
 
 # The following is valid if conductivity and storage vary from place to place.
 # conductivity = np.array([1]*n_edges)
@@ -145,132 +146,109 @@ niter = 100
               
 #%%
 # Dynamics with NetworkX
-print(">>>>>> NetworkX")
-
-
-def dyn_netx(dt, dx, niter, h_ini):
-    # types can be 'advection' for simple gradient transport or 'diffusion' for 2nd order derivative 
-    EQ_TYPE = 'advection' 
-    
-    if EQ_TYPE=='diffusion':
-        # grad(h) is a new edge variable that allows to compute d^2h/dx^2 = d grad(h)/dx
-        nx.set_node_attributes(G=g, values=0, name='grad')
-    
-    h = h_ini[:]
-    h_old = h_ini[:]
-    
-    # print([f"{node['h_old']:.2f}" for n, node in g.nodes(data=True)])
-    
-    # TODO: Only mock dynamics here. Implement Saint Venants simplification
-    for t in range(niter):
-        for n, node in g.nodes(data=True):
-            if node['diri_bool']: # Diri BC
-                continue
-            else:
-                h_incr = 0
-                for i in g_un.neighbors(n): # all neighbors, not just in or outgoing
-                    neigh = g.nodes[i]
-                    if EQ_TYPE=='advection':
-                        h_incr = h_incr + dt/dx * K/S * (neigh['h_old'] - node['h_old']) 
+def advection_netx_single_step(g, dt, dx, b):
+    """
+    Performs advection on graph and updates properties in place
+    Diffusion not yet implemented!
+    - b is advection constant, i.e., du/dt = bdu/dx
+    - g is undirected
+    """  
+    for n, node in g.nodes(data=True):
+        if node['diri_bool']: # Diri BC
+            continue # Assuming here that initial condition already satisfies Diri BC
+        else:
+            h_incr = 0
+            for i in g.neighbors(n): # all neighbors, not just in or outgoing
+                neigh = g.nodes[i]
+                h_incr = h_incr + b/dx * (neigh['h_old'] - node['h_old'])
                 
-                    elif EQ_TYPE=='diffusion':
-                        raise NotImplementedError('Diffusion not implemented yet')
-    
-                    else:
-                        raise ValueError('Type of equation not understood')
-                        
-                if node['neumann_bool']: # Neumann BC
-                    h_incr = h_incr + dt * K/S * node['neumann_bc']
-                    
-                node['h_new'] = node['h_old'] + h_incr + dt/S * node['source']
-        
-        # Print some stuff
-        hs = [node['h_old'] for n, node in g.nodes(data=True)]
-        hss = [node['h_old'] for n, node in g.nodes(data=True)]
-        
-        # update old to new
-        for n, node in g.nodes(data=True):
-            node['h_old'] = node['h_new']
+            if node['neumann_bool']: # Neumann BC
+                h_incr = h_incr + node['neumann_bc']/dx
+                
+            # Synchronous update
+            node['h_new'] = node['h_old'] + dt*(h_incr + node['source'])
 
-    return hs
-    
-#%%
-# Vectorized Directed
+    return 0
 
+initialize_graph_values(g_un, h_ini, dem_nodes, diri_bc_nodes, diri_bc_bool, neumann_bc_nodes, neumann_bc_bool, source)
 
-def difference_operator(u, R, RR):
-    return R.dot(u) - np.multiply(RR, u)
+h_adv_nx = [[] for i in range(niter)]
+for t in range(niter):
+    
+    h_adv_nx[t] = [node['h_new'] for _,node in g_un.nodes(data=True)]
+    
+    advection_netx_single_step(g_un, dt, dx, 1)
+    
+    for n, node in g_un.nodes(data=True):
+        node['h_old'] = node['h_new']
 
-def advection_vecto(dt, dx, niter, h_ini):
-    """
-    Here advection means first derivative of the water height
+plt.figure()
+for t in range(niter):
+    plt.plot(h_adv_nx[t], color='blue', alpha=0.3)
 
-    """
-    h = h_ini[:] # Ini cond
-    h_old = h_ini[:]
-    
-    # Compute static matrices needed for the update
-    R = CNM + CNM.T
-    RR =  R.sum(axis=1).A1
-    
-    print(h)
-    
-    # Update. Simplest forward Euler
-    for t in range(niter):
-        print(t)
-        h = h + dt/dx * K/S * difference_operator(h, R, RR) + dt/S*source
-        # BC
-        # No flux boundary conditions by default
-        h = np.where(diri_bc_bool, h_old, h) # Diri conditions
-        
-    return(h)
-
-
-def diffusion_vecto(dt, dx, niter, h_ini):
-    """
-    Here diffusion means second derivative of the water height.
-    The second derivative is computed by storing the first in another 
-    variable, then differentiating that.
-
-    """
-    h = h_ini[:] # Ini cond
-    h_old = h_ini[:]
-    
-    # Compute static matrices needed for the update
-    R = CNM + CNM.T
-    RR =  R.sum(axis=1).A1
-    
-    print(h)
-    
-    # Update. Simplest forward Euler
-    for t in range(niter):
-        print(t)
-        h_prime = difference_operator(h, R, RR)
-        h = h + dt/(dx**2) * K/S * difference_operator(h_prime, R, RR) + dt/S*source
-        # BC
-        # TODO! IMPLEMENT NOFLUX BC # No flux BC
-        h = np.where(diri_bc_bool, h_old, h) # Diri conditions
-        print(h)
-        
-    return(h)
 
 #%%
-# Vectorized undirected
+# Vectorally
 def compute_laplacian_from_adjacency(adj_matrix):
+    if np.any(adj_matrix != adj_matrix.T):
+        raise ValueError('the matrix must be symmetric, i.e., must be the adj matrix of an undirected graph')
     degree_matrix = np.diag(np.sum(adj_matrix, axis=1))
-    laplacian = adj_matrix - degree_matrix
+    laplacian = degree_matrix - adj_matrix
     
     return laplacian
 
+def L_advection(directed_adj_matrix):
+    """
+    Returns the 'modified Laplacian', i.e., the advection operator
+    """
+    D_out = np.diag(np.sum(directed_adj_matrix, axis=0))
+    return D_out - directed_adj_matrix
 
-def forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, source, diri_bc_bool):
-    h = h + dt*(b/dx*L @ h + a/dx**2 * L @ L @ h + source)
-    # BC
-    # No flux boundary conditions by default
-    h = np.where(diri_bc_bool, h_old, h) # Diri conditions
+def advection_diffusion_operator(dx, L, L_adv, a, b):
+    return -a/dx**2*L + b/dx*L_adv
+
+def set_Neumann_BC(L_mix, L, neumann_bc_bool):
+    
+    warnings.warn('Neumann BC not checked yet!')
+    
+    no_flux_nodes = np.where(neumann_bc_bool)[0]
+    for nrow in no_flux_nodes: # No flux BC
+        L_mix[nrow] = L[nrow]
+    
+    return L_mix
+
+def set_Diri_BC(h, h_old, diri_bc_bool):
+    h = np.where(diri_bc_bool, h_old, h) # Diri BC conditions    
     return h
 
-def undirected_adv_diff(dt, dx, a, b, niter, h_ini, A, source):
+def forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool, neumann_bc_bool):
+    
+    L_mix = advection_diffusion_operator(dx, L, L_adv, a, b)
+    
+    L_mix = set_Neumann_BC(L_mix, L, neumann_bc_bool)
+    
+    h = h - dt * L_mix @ h + dt*source
+    
+    h = set_Diri_BC(h, h_old, diri_bc_bool)
+    
+    return h
+
+def backwards_Euler(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool, neumann_bc_bool):
+    
+    L_mix = advection_diffusion_operator(dx, L, L_adv, a, b)
+    
+    L_mix = set_Neumann_BC(L_mix, L, neumann_bc_bool)
+    
+    P = np.eye(N=L.shape[0]) - dt*L_mix
+    P_inv = np.linalg.inv(P)
+    
+    h = P_inv @ (h + dt*source)
+    
+    h = set_Diri_BC(h, h_old, diri_bc_bool)
+    
+    return h
+
+def advection_diffusion_vectorial(dt, dx, a, b, niter, h_ini, A, source):
     """
     Advection and diffusion terms.
     eq: dm/dt = am'' + bm' + source
@@ -280,21 +258,23 @@ def undirected_adv_diff(dt, dx, a, b, niter, h_ini, A, source):
     h_old = h_ini[:]
 
     L = compute_laplacian_from_adjacency(cnm_sim)
+    L_adv = L_advection(cnm)
     
     for t in range(niter):
-       h = forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, source, diri_bc_bool)
+       h = forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool)
     return(h)
 
 # Plot solutions over time
 if plotOpt:
     niter = 10000
-    dt = 1/niter
+    dt = 100/niter
     dx = 1
     
     h_adv = h_ini[:]
     h_dif = h_ini[:]
     h_advdif = h_ini[:]
     L = compute_laplacian_from_adjacency(cnm_sim)
+    L_adv = L_advection(cnm)
     
     plt.figure()
     for t in range(niter):
@@ -302,9 +282,9 @@ if plotOpt:
             plt.plot(h_adv, color='blue', alpha=0.5, label='advection')
             plt.plot(h_dif, color='orange', alpha=0.5, label='diffusion')
             plt.plot(h_advdif, color='green', alpha=0.5, label='adv + diff')
-        h_adv = forward_Euler_adv_diff_single_step(h_adv, h_ini, dt, dx, 0, 1, L, source, diri_bc_bool)
-        h_dif = forward_Euler_adv_diff_single_step(h_dif, h_ini, dt, dx, 1, 0, L, source, diri_bc_bool)
-        h_advdif = forward_Euler_adv_diff_single_step(h_advdif, h_ini, dt, dx, 1, 1, L, source, diri_bc_bool)
+        h_adv = forward_Euler_adv_diff_single_step(h_adv, h_ini, dt, dx, 0, 1, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
+        h_dif = forward_Euler_adv_diff_single_step(h_dif, h_ini, dt, dx, 1, 0, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
+        h_advdif = forward_Euler_adv_diff_single_step(h_advdif, h_ini, dt, dx, 1, 1, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
         
     plt.legend()
     plt.show()
@@ -314,7 +294,6 @@ if plotOpt:
 # Check with standard 1d finite differences. Comparison only valid when network = 1d linear mesh
     
 h_ini = dem_nodes + cwl_ini
-print(">>>>>> Standard finite diff")
 
 def advection_fd(dt, dx, niter, h_ini):
     h = h_ini[:]
@@ -322,14 +301,14 @@ def advection_fd(dt, dx, niter, h_ini):
     N = len(h)
     
     for t in range(niter):
-        print(t)
         for i in range(N):
             if i==0: # Neumann BC   
-                h[0] = h_old[0] + dt/dx * K/S * (-h_old[0] + h_old[1]) + source[0]
+                h[0] = h_old[0] + dt/dx *0.5* (-h_old[0] + h_old[1]) + dt*source[0]
             elif i==N-1: # Diri BC
-                h[-1] = h_old[-1] + source[i]
+                h[-1] = h_old[-1]
             else:
-                h[i] = h_old[i] + dt/dx * K/S * (h_old[i-1] - 2*h_old[i] + h_old[i+1])
+                # backward difference
+                h[i] = h_old[i] + dt/dx * (h_old[i] - h_old[i-1])
                 
         h_old = h
         
@@ -341,14 +320,13 @@ def diffusion_fd(dt, dx, niter, h_ini):
     N = len(h)
     
     for t in range(niter):
-        print(t)
         for i in range(N):
-            if i==0: # Neumann BC   
-                h[0] = h_old[0] + dt/dx * K/S * (-h_old[0] + h_old[1]) + source[0]
+            if i==0: # No flux Neumann BC   
+                h[0] = h_old[0] + dt/dx * 0.5* (-h_old[0] + h_old[1]) + dt*source[0]
             elif i==N-1: # Diri BC
-                h[-1] = h_old[-1] + source[i]
+                h[-1] = h_old[-1]
             else:
-                h[i] = h_old[i] + dt/dx * K/S * (h_old[i-1] - 2*h_old[i] + h_old[i+1])
+                h[i] = h_old[i] + dt/dx**2 *  (h_old[i-1] - 2*h_old[i] + h_old[i+1]) + dt*source[i]
                 
         h_old = h
         
@@ -356,28 +334,15 @@ def diffusion_fd(dt, dx, niter, h_ini):
                 
             
 #%%
-# Comparison
-    
-import time
+# Comparison graph and finite differences approach (only valid for 1d, linear mesh)
+h_ini = dem_nodes + cwl_ini
 
-time0 = time.time()
-h_nx = dyn_netx(dt, dx, niter, h_ini)
-print('Nx time = ', time.time() - time0)
+sol_fdadv = advection_fd(dt, dx, niter, dem_nodes + cwl_ini)
+sol_fddif = diffusion_fd(dt, dx, niter, dem_nodes + cwl_ini)        
 
-time0 = time.time()
-h_vc = advection_vecto(dt, dx, niter, h_ini)    
-print('Vectorized time = ', time.time() - time0)
-
-plt.figure()
-plt.plot(h_nx, label='nx')
-plt.plot(h_vc, label='vc')
-
-plt.figure()
-plt.plot(h_nx - h_vc, label='nx - vectorized')
-            
-            
-            
-            
+sol_adv = advection_diffusion_vectorial(dt, dx, 0, 1, niter, dem_nodes + cwl_ini, cnm_sim, source)
+sol_dif = advection_diffusion_vectorial(dt, dx, 1, 0, niter, dem_nodes + cwl_ini, cnm_sim, source)
+                     
             
             
             
