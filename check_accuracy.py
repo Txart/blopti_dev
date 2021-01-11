@@ -122,7 +122,7 @@ abs_tolerance = 1e-5
 
 #%%
 # Run accuracy tests
-Ns = [10, 25, 50, 100, 200]
+Ns = [10, 25]
 
 N_PARAMS = 10
 rnd_params = np.random.rand(N_PARAMS,4) * 2
