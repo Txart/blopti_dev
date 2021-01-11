@@ -135,7 +135,7 @@ times_fipy = [[] for i in range(N_PARAMS)]
 
 for nN, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
-        v_sol, time_spent = solve_with_given_N(N, params)
+        v_sol, time_spent = solve_with_given_N(N-1, params)
         v_sol_fipy, time_spent_fipy = solve_fipy_with_given_N(N, params)
         
         v_sols[nparam].append(v_sol)
@@ -154,7 +154,7 @@ cmaplist = [cmap(int(i)) for i in range(0, len(Ns))]
 for nparam, params in enumerate(rnd_params):
     plt.figure(nparam, figsize=(8, 6), dpi=400)
     for nN, N in enumerate(Ns):
-        x = np.linspace(0,2,N+1)
+        x = np.linspace(0,2,N)
         plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
         plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
         
