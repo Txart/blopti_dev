@@ -28,7 +28,7 @@ def solve_with_given_N(N, params):
     v = v_ini[:]
     v_old = v_ini[:] # in the previous timestep
     
-    NDAYS = 10
+    NDAYS = 100
     
     b = np.ones(shape=v.shape) * (-4)
     
@@ -38,7 +38,7 @@ def solve_with_given_N(N, params):
     
     c_start_time = time.time()
     
-    for t in NDAYS:
+    for t in range(NDAYS):
         # Compute tolerance. Each day, a new tolerance because source changes
         _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
         rel_tol = rel_tolerance * np.linalg.norm(F)
@@ -76,7 +76,7 @@ def solve_fipy_with_given_N(N, params):
     dx = 100.0/N
     dt = 1.0
     
-    NDAYS = 10
+    NDAYS = 100
 
     f_start_time = time.time()
     
@@ -99,7 +99,7 @@ def solve_fipy_with_given_N(N, params):
     
     MAX_SWEEPS = 10000
 
-    for t in NDAYS:
+    for t in range(NDAYS):
         v_fp.updateOld()
     
         res = 0.0
@@ -182,9 +182,52 @@ plt.title('Comp times')
 plt.savefig('acc_plots/acc_comp_times.png')
 
     
-    
-    
-    
-    
-    
+#%%    
+# plot avg comparison of last mesh point and computational times
+# compute avg of last mesh point
+avg_last_mesh_point = np.zeros(len(Ns))
+for sol_para in v_sols:
+    for i,n_para in enumerate(sol_para):
+        avg_last_mesh_point[i] = avg_last_mesh_point[i] + n_para[-1]
+
+avg_last_mesh_point = avg_last_mesh_point/N_PARAMS
+
+# compute relative difference of each N with respect to the highest N
+rel_diff_last_mesh_point = (avg_last_mesh_point - avg_last_mesh_point[-1])/avg_last_mesh_point[-1]
+
+# plot with 2 axes
+
+fig, ax = plt.subplots(constrained_layout=True)
+
+ax.plot(100/np.array(Ns[::-1]), rel_diff_last_mesh_point[::-1], 'o')
+ax.set_xlabel(r'$\Delta x$ (m)')
+ax.set_ylabel(r'$(\theta_N(\Delta x) - \theta_N(max\Delta x))/\theta_N(max\Delta x)$')
+ax.set_title('Accuracy experiments')
+ax.set_ylim(-0.5, 0.5)
+
+ax2 = ax.twinx()
+ax2.set_ylabel('Avg comp. time (s)')
+ax2.plot(100/np.array(Ns[::-1]), time_avgs[::-1], 'x', color='orange')
+
+plt.savefig('acc_plots/combined_diff_and_comp_times.png')
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     
