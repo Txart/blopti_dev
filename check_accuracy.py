@@ -28,6 +28,7 @@ def solve_with_given_N(N, params):
     v = v_ini[:]
     v_old = v_ini[:] # in the previous timestep
     
+    NDAYS = 10
     
     b = np.ones(shape=v.shape) * (-4)
     
@@ -37,24 +38,25 @@ def solve_with_given_N(N, params):
     
     c_start_time = time.time()
     
-    # Compute tolerance. Each day, a new tolerance because source changes
-    _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
-    rel_tol = rel_tolerance * np.linalg.norm(F)
-    print(rel_tol)
-    
-    for i in range(0, MAX_INTERNAL_NITER):
-        J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
+    for t in NDAYS:
+        # Compute tolerance. Each day, a new tolerance because source changes
+        _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
+        rel_tol = rel_tolerance * np.linalg.norm(F)
+        print(rel_tol)
         
-        eps_x = np.linalg.solve(J,-F)
-        v = v + weight*eps_x
-
-        # stopping criterion
-        residue = np.linalg.norm(F) - rel_tol
-        if residue < abs_tolerance:
-            print(f'Solution of the Newton linear system in {i} iterations')
-            break
+        for i in range(0, MAX_INTERNAL_NITER):
+            J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
+            
+            eps_x = np.linalg.solve(J,-F)
+            v = v + weight*eps_x
     
-    v_old = v[:]
+            # stopping criterion
+            residue = np.linalg.norm(F) - rel_tol
+            if residue < abs_tolerance:
+                print(f'Solution of the Newton linear system in {i} iterations')
+                break
+    
+        v_old = v[:] # update
         
     time_spent = time.time() - c_start_time
     print(f"Finite diff FORTRAN, {N} time = {time_spent}") 
@@ -73,6 +75,8 @@ def solve_fipy_with_given_N(N, params):
     
     dx = 100.0/N
     dt = 1.0
+    
+    NDAYS = 10
 
     f_start_time = time.time()
     
@@ -95,15 +99,16 @@ def solve_fipy_with_given_N(N, params):
     
     MAX_SWEEPS = 10000
 
-    v_fp.updateOld()
-
-    res = 0.0
-    for r in range(MAX_SWEEPS):
-        # print(i, res)
-        resOld=res
-        # res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
-        res = eq.sweep(var=v_fp, dt=dt)
-        if abs(res - resOld) < abs_tolerance: break # it has reached to the solution of the linear system
+    for t in NDAYS:
+        v_fp.updateOld()
+    
+        res = 0.0
+        for r in range(MAX_SWEEPS):
+            # print(i, res)
+            resOld=res
+            # res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
+            res = eq.sweep(var=v_fp, dt=dt)
+            if abs(res - resOld) < abs_tolerance: break # it has reached to the solution of the linear system
 
     
     time_spent = time.time() - f_start_time
