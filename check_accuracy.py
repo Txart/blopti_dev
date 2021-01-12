@@ -128,10 +128,10 @@ abs_tolerance = 1e-5
 
 #%%
 # Run accuracy tests
-Ns = [10, 25, 50, 100, 200]
+Ns = [10, 25, 50, 100, 200, 1000]
 
-N_PARAMS = 10
-rnd_params = np.random.rand(N_PARAMS,4) * 2
+N_PARAMS = 1000
+rnd_params = np.random.rand(N_PARAMS,4) * 3
 
 v_sols = [[] for i in range(N_PARAMS)]
 times = [[] for i in range(N_PARAMS)]
@@ -181,9 +181,16 @@ plt.plot(Ns, time_avgs_fipy, 'x')
 plt.title('Comp times')
 plt.savefig('acc_plots/acc_comp_times.png')
 
-    
+#%%
+# pickle resulting values
+import pickle
+save_vars = (v_sols, v_sols_fipy, time_avgs, time_avgs_fipy)
+pickle.dump(save_vars, open("resulting_values.p", "wb"))
+
+
+ 
 #%%    
-# plot avg comparison of last mesh point and computational times
+# plot avg comparison of last mesh point and computational times FOR FORTRAN
 # compute avg of last mesh point
 avg_last_mesh_point = np.zeros(len(Ns))
 for sol_para in v_sols:
@@ -203,7 +210,7 @@ ax.plot(100/np.array(Ns[::-1]), rel_diff_last_mesh_point[::-1], 'o')
 ax.set_xlabel(r'$\Delta x$ (m)')
 ax.set_ylabel(r'$(\theta_N(\Delta x) - \theta_N(max\Delta x))/\theta_N(max\Delta x)$')
 ax.set_title('Accuracy experiments')
-ax.set_ylim(-0.5, 0.5)
+ax.set_ylim(-1.1 * rel_diff_last_mesh_point.max(), 1.1 * rel_diff_last_mesh_point.max())
 
 ax2 = ax.twinx()
 ax2.set_ylabel('Avg comp. time (s)')
