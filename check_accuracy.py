@@ -16,7 +16,7 @@ import fd # own fortran functions
 
 def solve_with_given_N(N, params):
     
-    dx = 2.0/N
+    dx = 100.0/N
     
     # Relaxation parameter
     weight = 1/N
@@ -71,7 +71,7 @@ def solve_fipy_with_given_N(N, params):
     s1 = params[0]; s2 = params[1]
     t1 = params[2]; t2 = params[3]
     
-    dx = 2.0/N
+    dx = 100.0/N
     dt = 1.0
 
     f_start_time = time.time()
@@ -101,7 +101,8 @@ def solve_fipy_with_given_N(N, params):
     for r in range(MAX_SWEEPS):
         # print(i, res)
         resOld=res
-        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
+        # res = eq.sweep(var=v_fp, dt=dt, underRelaxation=0.1)
+        res = eq.sweep(var=v_fp, dt=dt)
         if abs(res - resOld) < abs_tolerance: break # it has reached to the solution of the linear system
 
     
@@ -111,9 +112,9 @@ def solve_fipy_with_given_N(N, params):
 
 #%%
 # Params
-DIRI = 0
+DIRI = 0.2
 SOURCE = 2/1000
-INI_VALUE = 0.2
+INI_VALUE = 0.5
 MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 rel_tolerance = 1e-5
