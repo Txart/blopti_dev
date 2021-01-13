@@ -128,7 +128,7 @@ abs_tolerance = 1e-5
 
 #%%
 # Run accuracy tests
-Ns = [10, 25, 50, 100, 200, 1000]
+Ns = [10, 25, 50, 100, 200]
 
 N_PARAMS = 1000
 rnd_params = np.random.rand(N_PARAMS,4) * 3
