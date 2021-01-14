@@ -136,18 +136,18 @@ rnd_params = np.random.rand(N_PARAMS,4) * 3
 v_sols = [[] for i in range(N_PARAMS)]
 times = [[] for i in range(N_PARAMS)]
 
-v_sols_fipy = [[] for i in range(N_PARAMS)]
-times_fipy = [[] for i in range(N_PARAMS)]
+# v_sols_fipy = [[] for i in range(N_PARAMS)]
+# times_fipy = [[] for i in range(N_PARAMS)]
 
 for nN, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
         v_sol, time_spent = solve_with_given_N(N-1, params)
-        v_sol_fipy, time_spent_fipy = solve_fipy_with_given_N(N, params)
+        # v_sol_fipy, time_spent_fipy = solve_fipy_with_given_N(N, params)
         
         v_sols[nparam].append(v_sol)
-        v_sols_fipy[nparam].append(v_sol_fipy)
+        # v_sols_fipy[nparam].append(v_sol_fipy)
         times[nparam].append(time_spent)
-        times_fipy[nparam].append(time_spent_fipy)
+        # times_fipy[nparam].append(time_spent_fipy)
         
         
 
@@ -162,7 +162,7 @@ for nparam, params in enumerate(rnd_params):
     for nN, N in enumerate(Ns):
         x = np.linspace(0,2,N)
         plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
-        plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+        # plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
         
     
     plt.title(params)
@@ -171,20 +171,20 @@ for nparam, params in enumerate(rnd_params):
     
 # Plot times
 times_np = np.array(times)
-times_fipy_np = np.array(times_fipy)
+# times_fipy_np = np.array(times_fipy)
 time_avgs = np.mean(times_np, axis=0)
-time_avgs_fipy = np.mean(times_fipy_np, axis=0)
+# time_avgs_fipy = np.mean(times_fipy_np, axis=0)
 
 plt.figure('times')
 plt.plot(Ns, time_avgs, 'o')
-plt.plot(Ns, time_avgs_fipy, 'x')
+# plt.plot(Ns, time_avgs_fipy, 'x')
 plt.title('Comp times')
 plt.savefig('acc_plots/acc_comp_times.png')
 
 #%%
 # pickle resulting values
 import pickle
-save_vars = (v_sols, v_sols_fipy, time_avgs, time_avgs_fipy)
+save_vars = (v_sols, time_avgs)
 pickle.dump(save_vars, open("resulting_values.p", "wb"))
 
 
