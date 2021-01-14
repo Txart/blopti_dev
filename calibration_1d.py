@@ -186,6 +186,10 @@ def log_likelihood(params):
             zeta_test_measurements = measurements.drop(columns=['sensor_0', last_sensor_name]).to_numpy()[1:]
         
         # print('continuing...')
+            
+        simulated_wtd= hydro_calibration.hydro_1d_half_fortran(theta_ini, nx-1, dx, dt, params, ndays, sensor_locations,
+                                                                         theta_boundary_values_left, theta_boundary_values_right, precip, evapotra, ele_interp, peat_depth)
+        import sys; sys.exit() 
         
         try:
             with np.errstate(all='raise'):
