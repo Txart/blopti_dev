@@ -288,6 +288,7 @@ def compute_co2_from_WTD(wtd, lc_multiplicative_coef_co2, lc_additive_coef_co2):
     co2 = co2_hooijer
     carlson_mask = np.where(lc_multiplicative_coef_co2==-77.07)
     co2[carlson_mask] = co2_carlson[carlson_mask]
+    co2 = co2/365 # tCO2eq/ha/yr -> tCO2eq/ha/day
     
     return co2
 
@@ -300,20 +301,43 @@ def compute_subsi_from_WTD(wtd, lc_multiplicative_coef_subsi, lc_additive_coef_s
     wtd_hooijer_capped[wtd < -1.25] = -1.25
     wtd_evans_capped[wtd < -1.2] = -1.2
     
-    subsi_hooijer = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd_hooijer_capped #tCO2eq/ha/yr
+    subsi_hooijer = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd_hooijer_capped
     subsi_evans = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd_evans_capped
     
     subsi = subsi_hooijer
     evans_mask = np.where(lc_multiplicative_coef_subsi==-6.54)
     subsi[evans_mask] = subsi_evans[evans_mask]
-    
-    return subsi
-    
-    
+
     subsi = lc_additive_coef_subsi + lc_multiplicative_coef_subsi * wtd # cm/yr
-    subsi = subsi/100 #m/yr
+    subsi = subsi/100/365 # cm/yr -> m/day
     
     return subsi
+
+def write_raster_multiband(nbands, rasters_array, STUDY_AREA, out_filename, ref_filename=r"data/Strat4/DTM_metres_clip.tif"):
+    # Rasters_array should be a numpy array with the form [bands, rows, col]
+    # This means that if there are 4 bands in the raster, the shape of the array
+    # should be (4, nrows, ncols)
+    # Metadata is copied from the raster at ref_filename
+    import rasterio
+    import preprocess_data
+    
+    with rasterio.open(ref_filename) as src: #src file is needed to output with the same metadata and attributes
+        profile = src.profile
+    _, _ , ref_raster, _, _, _, _ = preprocess_data.read_preprocess_rasters(STUDY_AREA, ref_filename, ref_filename, ref_filename, ref_filename, ref_filename, ref_filename, ref_filename)
+
+    if nbands != rasters_array.shape[0]:
+        raise ValueError("Number of bands does not match  raster array shape")
+
+    profile.update(nodata = None) # overrun nodata value given by input raster
+    profile.update(width = ref_raster.shape[1]) # Shape of rater is changed for hydro simulation inside read_preprocess_rasters. Here we take that shape to output consistently.
+    profile.update(height = ref_raster.shape[0])
+    profile.update(count=nbands)
+    profile.update(dtype='float32') # instead of 64. To save space, we don't need so much precision. float16 is not supported by GDAL, check: https://github.com/mapbox/rasterio/blob/master/rasterio/dtypes.py
+
+    with rasterio.open(out_filename, 'w', **profile) as dst:
+        dst.write(rasters_array.astype(dtype='float32'))
+        
+    return 0
 
     
     
