@@ -60,6 +60,7 @@ dfs_sliced_relevant_transects = {}
 # Slice by julian day
 jday_bounds = {'P002':[775, 817], # 660: 22/10/2019; 830: 9/4/2020
                'P012':[740, 771],
+               'P015':[707, 724],
                'P016':[707, 731],
                'P018':[815, 827]
                }
@@ -73,23 +74,27 @@ for key, df in dfs_relevant_transects.items():
 DEM_RESOLUTION = 100 # m/pixel
 sensor_locations = {'P002':[0, -1],
                     'P012':[0, -1],
+                    'P015':[0, -1],
                     'P016':[0, -1],
                     'P018':[0, -1]
                     }  # sensor locations wrt position in grid
 
 transect_length = {'P002': 120,
                    'P012': 190,
+                   'P015': 127,
                    'P016': 485,
                    'P018': 210
                    } # length in meters, derived from DTM
 
 surface_elev = {'P002':[4.68, 4.8],
                 'P012':[6.03, 6.24],
+                'P015':[9.06, 8.96],
                 'P016':[9.02, 9.1],
                 'P018':[9.94, 9.03]} # m above common ref point
 
 peat_depth = {'P002': -2,
               'P012': -8,
+              'P015': -8,
               'P016': -8,
               'P018': -8} # m below lowest peat surface elevation
 

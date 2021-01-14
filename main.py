@@ -222,8 +222,12 @@ co2_mult_coef, co2_add_coef = utilities.map_lc_number_to_lc_coef_in_co2_emission
 co2 = utilities.compute_co2_from_WTD(wtd, co2_mult_coef, co2_add_coef)
 # Get coefs and compute subsidence
 subsi_mult_coef, subsi_add_coef = utilities.map_lc_number_to_lc_coef_in_subsidence_formula(lc)
-subsi = utilities.compute_subsi_from_WTD(wtd, subsi_mult_coef, subsi_add_coef)
-    
+subsi = utilities.compute_subsi_from_WTD(wtd, subsi_mult_coef, subsi_add_coef) #m/day
+
+# output as a single multiband raster
+multiband = np.array([wtd, co2, subsi])
+
+utilities.write_raster_multiband(3, multiband, STUDY_AREA, out_filename='output/dem_co2_subsi.tif', ref_filename=dem_rst_fn)    
     
 """
 Save WTD data if simulating a year
