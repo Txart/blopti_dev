@@ -29,7 +29,7 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     v_old = v_ini[:] # in the previous timestep
 
     # Relaxation parameter
-    weight = 0.1
+    weight = 0.5
     
     # J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)   
     
