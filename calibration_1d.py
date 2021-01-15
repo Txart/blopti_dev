@@ -71,7 +71,7 @@ for key, df in dfs_relevant_transects.items():
 
 # TODO: Maybe put all this in an excel    
 # Data invented. Check from raster data
-DEM_RESOLUTION = 100 # m/pixel
+# DEM_RESOLUTION = 100 # m/pixel
 sensor_locations = {'P002':[0, -1],
                     'P012':[0, -1],
                     'P015':[0, -1],
@@ -117,7 +117,7 @@ for tran in relevant_transects:
 MCMC parameter estimation
 """ 
 # Parameters
-nx = 10
+dx = 5 # in m
 dt = 1. # in days. FiPy solution is implicit in time, so timestep should be 1 day.
 
 hydrology_error_count = 0
@@ -148,7 +148,7 @@ def log_likelihood(params):
         peat_depth = dic['peat_depth']
         transect_length = dic['transect_length']
         
-        dx = int(transect_length/nx)
+        nx = int(transect_length/dx)
         
         sensor_column_names = [name for name in df.columns if 'sensor' in name]
         measurements = df[sensor_column_names]
