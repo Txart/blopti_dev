@@ -19,7 +19,7 @@ def solve_with_given_N(N, params):
     dx = 100.0/N
     
     # Relaxation parameter
-    weight = 1/N
+    weight = 0.1
     
     dt = 1.0 # in days
     v_ini = np.ones(shape=N+1)*INI_VALUE
@@ -28,7 +28,7 @@ def solve_with_given_N(N, params):
     v = v_ini[:]
     v_old = v_ini[:] # in the previous timestep
     
-    NDAYS = 100
+    NDAYS = 50
     
     b = np.ones(shape=v.shape) * (-4)
     
@@ -76,7 +76,7 @@ def solve_fipy_with_given_N(N, params):
     dx = 100.0/N
     dt = 1.0
     
-    NDAYS = 10
+    NDAYS = 50
 
     f_start_time = time.time()
     
@@ -128,7 +128,7 @@ abs_tolerance = 1e-5
 
 #%%
 # Run accuracy tests
-Ns = [10, 25, 50, 100, 200]
+Ns = [10, 25, 50, 100]
 
 N_PARAMS = 10
 rnd_params = np.random.rand(N_PARAMS,4) * 3
