@@ -225,7 +225,7 @@ def transects_and_weather_together(dfs_by_sensor_label, daily_weather_df):
                 for name in sn_sub_subset:
                     df = dfs_by_sensor_label[name]
                     # names for columns
-                    if 'X' in name: # all columns labelled with an X are canal columns
+                    if 'X' in name: # all sensors labelled with an X are canal sensors
                         new_name_col = 'sensor_0'
                     elif si == 'P':
                             new_name_col = 'sensor_1' # P sensors have only 1 sensor apart from the canal one

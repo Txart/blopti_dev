@@ -53,7 +53,7 @@ fn_weather_data = Path('data/weather_station_historic_data.xlsx')
 dfs_by_transects = get_data.main(fn_weather_data)
 
 # Choose transects
-relevant_transects = ['P002', 'P012', 'P016', 'P018']
+relevant_transects = ['P002', 'P012', 'P015', 'P016', 'P018']
 dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
  
 dfs_sliced_relevant_transects = {}
