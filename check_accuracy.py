@@ -130,7 +130,7 @@ abs_tolerance = 1e-5
 # Run accuracy tests
 Ns = [10, 25, 50, 100]
 
-N_PARAMS = 10
+N_PARAMS = 1000
 rnd_params = np.random.rand(N_PARAMS,4) * 3
 
 v_sols = [[] for i in range(N_PARAMS)]
