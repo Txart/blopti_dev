@@ -28,7 +28,7 @@ def solve_with_given_N(N, params):
     v = v_ini[:]
     v_old = v_ini[:] # in the previous timestep
     
-    NDAYS = 50
+    NDAYS = 100
     
     b = np.ones(shape=v.shape) * (-4)
     
@@ -76,7 +76,7 @@ def solve_fipy_with_given_N(N, params):
     dx = 100.0/N
     dt = 1.0
     
-    NDAYS = 50
+    NDAYS = 100
 
     f_start_time = time.time()
     
