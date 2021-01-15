@@ -58,9 +58,10 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         
         # Early stopping criterion: theta cannot be negative
         if np.any(v < 0) or np.any(np.isnan(v)):
-            print(f'\n Number of run internal iterations: {i}')
+            
             raise ValueError('NEGATIVE V FOUND, ABORTING')
         
+        print(f'\n Number of run internal iterations: {i}')
         v_old = v[:]
         
         # Append to list
