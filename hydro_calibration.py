@@ -29,11 +29,11 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     v_old = v_ini[:] # in the previous timestep
 
     # Relaxation parameter
-    weight = 0.5
+    weight = 0.2
     
     # J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)   
     
-    MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+    MAX_INTERNAL_NITER = 1000 # max niters to solve nonlinear algebraic eq of Newton's method
     
     theta_sol_list = [] # returned quantity
     
