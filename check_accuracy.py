@@ -117,9 +117,9 @@ def solve_fipy_with_given_N(N, params):
 
 #%%
 # Params
-DIRI = 0.4
+DIRI = 0.3
 SOURCE = -2/1000
-INI_VALUE = 0.2
+INI_VALUE = 0.1
 MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 rel_tolerance = 1e-5
@@ -128,8 +128,7 @@ abs_tolerance = 1e-5
 
 #%%
 # Run accuracy tests
-# Ns = [10, 25, 50, 100]
-Ns = [10, 25]
+Ns = [10, 25, 50, 100]
 
 N_PARAMS = 1000
 rnd_params = np.random.rand(N_PARAMS,4) * 3
