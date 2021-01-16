@@ -149,7 +149,7 @@ for i in range(0,N_ITER):
     #########################################
     """
     ny, nx = dem.shape
-    dx = 1.; dy = 1. # metres per pixel  (Actually, pixel size is 100m x 100m, so all units have to be converted afterwards)
+    dx = 100.; dy = 1. # metres per pixel  (Actually, pixel size is 100m x 100m, so all units have to be converted afterwards)
     
     boundary_arr = boundary_mask * (dem - DIRI_BC) # constant Dirichlet value in the boundaries
     

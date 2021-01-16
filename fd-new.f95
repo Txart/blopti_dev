@@ -1,4 +1,4 @@
-subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, source, J, F)
+subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, s1, s2, t1, t2, source, J, F)
 ! =====================================================
 ! Sets up Jacobian matrix for Newton-Rhapson method
 ! solution of the Backward Euler implicit finite diff
@@ -9,7 +9,7 @@ subroutine j_and_f(N, v, v_old, b, delta_t, delta_x, diri_bc, s1, s2, t1, t2, so
 ! =====================================================
     
     integer, intent(in) :: N
-    real, intent(in) :: delta_t, delta_x, diri_bc, source, s1, s2, t1, t2
+    real, intent(in) :: delta_t, delta_x, source, s1, s2, t1, t2
     real, intent(in) :: v(N+1), v_old(N+1), b(N+1)
     real, intent(out) :: J(N+1,N+1), F(N+1)
 

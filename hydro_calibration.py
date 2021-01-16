@@ -39,15 +39,17 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
     
     for day in range(ndays):
         # BC and Source/sink update
-        theta_left = boundary_values_left[day] # left BC is always Dirichlet. No-flux in the right all the time
+        # Left is always Dirichlet, Right is no-flux
+        v[0] = boundary_values_left[day] # Diri BC in the left must be passed as a value of the initial condition
         source = precip[day] - evapotra[day]
         
+        
         # Compute tolerance. Each day, a new tolerance because source changes
-        _, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=theta_left, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
+        _, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
         rel_tol = REL_TOLERANCE * np.linalg.norm(F)
 
         for i in range(0, MAX_INTERNAL_NITER):
-            J, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=theta_left, s1=s1, s2=s2, t1=t1, t2=t2, source=source)       
+            J, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, s1=s1, s2=s2, t1=t1, t2=t2, source=source)       
             eps_x = np.linalg.solve(J,-F)
             v = v + weight*eps_x
     
