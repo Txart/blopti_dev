@@ -12,62 +12,7 @@ import math
 import time
 
 #%%
-plotOpt = True
-
-#%%
-"""
- Params 
-"""
-
-params = [ -0.9, 1, 1.6, 10]
-s1 = params[0]; s2 = params[1]
-t1 = params[2]; t2 = params[3]
-SOURCE = -0.003 # P- ET
-INI_VALUE = 0.3
-DIRI_BC = 0.5
-TIMESTEPS = 3
-
-#%%
-def cheb(N):
-    '''Chebyshev polynomial differentiation matrix.
-       Ref.: https://github.com/nikola-m/another-chebpy/blob/master/chebPy.py
-    '''
-    x = np.cos(np.pi*np.linspace(0,N,N+1)/N)
-    c=np.zeros(N+1)
-    c[0]=2.
-    c[1:N]=1.
-    c[N]=2.
-    c = c * (-1)**np.linspace(0,N,N+1)
-    X = np.tile(x, (N+1,1))
-    dX = X.T - X # other way around!
-    D = np.dot(c.reshape(N+1,1),(1./c).reshape(1,N+1))
-    D = D / (dX+np.eye(N+1))
-    D = D - np.diag( D.T.sum(axis=0) )
-    return D,x
-
-#%%
-# Nonlinear heat equation Using Chebyshev:
-#    du/dt = d/dx(A(u)*du/dx) + S, which is equivalent to solving
-#    du/dt = A * u'' + dA/du * u'^2 + S
-#    BC: u(-1) = 0; u'(1) = 0; IC: u(0) = 1
-# Preparation for actual one
-
-print('>>>>> Chebyshev started')
-c_start_time = time.time()
-
-N = 10
-D,x = cheb(N)
-x = x; D=D # Dimension of the domain
-D2 = D @ D # matrix multiplication
-
-# IC
-v_ini = np.ones(shape=x.shape)*INI_VALUE
-# BC
-v_ini[-1] = 0
-
-v_old = v_ini[:] # v_ini is used later for others
-
-
+plotOpt = False
 
 def S(u, b):
     return s2 * u + np.exp(s1 + s2*b)
@@ -99,166 +44,229 @@ def dif_simple(u):
 def dif_u_simple(u):
     return 0.
 
-def forward_Euler(v_old, dt):
-    return v_old + dt*( dif_u_simple(v_old) * (D @ v_old)**2 + dif_simple(v_old) * D2 @ v_old + SOURCE)
+
+#%%
+"""
+ Params 
+"""
+
+params = [ -0.9, 1, 1.6, 10]
+s1 = params[0]; s2 = params[1]
+t1 = params[2]; t2 = params[3]
+SOURCE = -0.003 # P- ET
+INI_VALUE = 0.3
+DIRI_BC = 0.5
+TIMESTEPS = 20
+
+#%%
+# CHEBY
+RUN_CHEBY = False
+if RUN_CHEBY:
+    def cheb(N):
+        '''Chebyshev polynomial differentiation matrix.
+           Ref.: https://github.com/nikola-m/another-chebpy/blob/master/chebPy.py
+        '''
+        x = np.cos(np.pi*np.linspace(0,N,N+1)/N)
+        c=np.zeros(N+1)
+        c[0]=2.
+        c[1:N]=1.
+        c[N]=2.
+        c = c * (-1)**np.linspace(0,N,N+1)
+        X = np.tile(x, (N+1,1))
+        dX = X.T - X # other way around!
+        D = np.dot(c.reshape(N+1,1),(1./c).reshape(1,N+1))
+        D = D / (dX+np.eye(N+1))
+        D = D - np.diag( D.T.sum(axis=0) )
+        return D,x
+
+    #%%
+    # Nonlinear heat equation Using Chebyshev:
+    #    du/dt = d/dx(A(u)*du/dx) + S, which is equivalent to solving
+    #    du/dt = A * u'' + dA/du * u'^2 + S
+    #    BC: u(-1) = 0; u'(1) = 0; IC: u(0) = 1
+    # Preparation for actual one
+
+    print('>>>>> Chebyshev started')
+    c_start_time = time.time()
+
+    N = 10
+    D,x = cheb(N)
+    x = x; D=D # Dimension of the domain
+    D2 = D @ D # matrix multiplication
+
+    # IC
+    v_ini = np.ones(shape=x.shape)*INI_VALUE
+    # BC
+    v_ini[-1] = 0
+
+    v_old = v_ini[:] # v_ini is used later for others
 
 
 
-def RK4(v_old, dt):
-    # 4th order Runge-Kutta
-    def rhs(u):
-        # RHS of the PDE: du/dt = rhs(u)
-        return dif_u(u) * (D @ u)**2 + dif(u) * D2 @ u + SOURCE
-    # Diri BC have to be specified every time the rhs is evaluated!
-    k1 = rhs(v_old); k1[-1] = 0 # BC
-    k2 = rhs(v_old + dt/2*k1); k2[-1] = 0 # BC
-    k3 = rhs(v_old + dt/2*k2); k3[-1] = 0 # BC
-    k4 = rhs(v_old + dt*k3); k4[-1] = 0 # BC
-    
-    return v_old + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
-    
- 
-# Solve iteratively
-dt = 0.0001
 
-niter = int(TIMESTEPS/dt)
-v_plot = [0]*(niter+1)
-v_plot[0] = v_old
-for i in range(niter):
-    v_new = forward_Euler(v_old, dt)
-    v_new[-1] = 0 # Diri BC
-    nbc =  D[0,1:] @ v_new[1:] # Neumann BC
-    v_new[0] = -1/D[0,0] * nbc
-    v_old = v_new
+
+    def forward_Euler(v_old, dt):
+        return v_old + dt*( dif_u_simple(v_old) * (D @ v_old)**2 + dif_simple(v_old) * D2 @ v_old + SOURCE)
+
+
+
+    def RK4(v_old, dt):
+        # 4th order Runge-Kutta
+        def rhs(u):
+            # RHS of the PDE: du/dt = rhs(u)
+            return dif_u(u) * (D @ u)**2 + dif(u) * D2 @ u + SOURCE
+        # Diri BC have to be specified every time the rhs is evaluated!
+        k1 = rhs(v_old); k1[-1] = 0 # BC
+        k2 = rhs(v_old + dt/2*k1); k2[-1] = 0 # BC
+        k3 = rhs(v_old + dt/2*k2); k3[-1] = 0 # BC
+        k4 = rhs(v_old + dt*k3); k4[-1] = 0 # BC
+        
+        return v_old + 1/6 * dt * (k1 + 2*k2 + 2*k3 + k4)
+        
      
-    v_plot[i+1] = v_old
+    # Solve iteratively
+    dt = 0.0001
 
-print(f"Cheb time(s) = {time.time() - c_start_time}")  
+    niter = int(TIMESTEPS/dt)
+    v_plot = [0]*(niter+1)
+    v_plot[0] = v_old
+    for i in range(niter):
+        v_new = forward_Euler(v_old, dt)
+        v_new[-1] = 0 # Diri BC
+        nbc =  D[0,1:] @ v_new[1:] # Neumann BC
+        v_new[0] = -1/D[0,0] * nbc
+        v_old = v_new
+         
+        v_plot[i+1] = v_old
 
-if False:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title('Chebyshev')
-    
-    v_plot = np.array(v_plot)
-    v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
-    
-    for j in range(v_plot.shape[0]):
-        ys = j*np.ones(v_plot.shape[1])
-        ax.plot(x,ys,v_plot[j,:])
+    print(f"Cheb time(s) = {time.time() - c_start_time}")  
+
+    if False:
+        # Waterfall plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_title('Chebyshev')
+        
+        v_plot = np.array(v_plot)
+        v_plot = v_plot[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+        
+        for j in range(v_plot.shape[0]):
+            ys = j*np.ones(v_plot.shape[1])
+            ax.plot(x,ys,v_plot[j,:])
 
   
 #%%
 # Check with fipy
+RUN_FIPY = True
+if RUN_FIPY:
 
-import fipy as fp
-from fipy.tools import numerix
-import copy
+    import fipy as fp
+    from fipy.tools import numerix
+    import copy
 
-N = 10 # cheby starts at pos=0
+    N = 10 # cheby starts at pos=0
 
-dx = 2/N
+    dx = 2/N
 
-print('\n >>>>> FiPy started')
+    print('\n >>>>> FiPy started')
 
-f_start_time = time.time()
+    f_start_time = time.time()
 
-mesh = fp.Grid1D(nx=N, dx=dx)
+    mesh = fp.Grid1D(nx=N, dx=dx)
 
-v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=INI_VALUE, hasOld=True)
+    v_fp = fp.CellVariable(name="v_fp", mesh=mesh, value=INI_VALUE, hasOld=True)
 
-# BC
-v_fp.constrain(DIRI_BC, where=mesh.facesLeft) # left BC is always Dirichlet
-# v_fp.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight) # right: flux=0
+    # BC
+    v_fp.constrain(DIRI_BC, where=mesh.facesLeft) # left BC is always Dirichlet
+    # v_fp.faceGrad.constrain(0. * mesh.faceNormals, where=mesh.facesRight) # right: flux=0
 
-b = -4.
+    b = -4.
 
-def dif_fp(u):
-    b=-4.
-    D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * u + numerix.exp(s1 + s2*b))
-    
-    return D
+    def dif_fp(u):
+        b=-4.
+        D = (numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * u + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * u + numerix.exp(s1 + s2*b))
+        
+        return D
 
-def dif_fp_simple(u):
-    # Simpler diffusivity, for checks
-    return 1.
+    def dif_fp_simple(u):
+        # Simpler diffusivity, for checks
+        return 1.
 
-# Boussinesq eq. for theta
-eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=(numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * v_fp + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * v_fp + numerix.exp(s1 + s2*b))) + SOURCE
-
-
-dt = 1.0
-niter = int(TIMESTEPS/dt)
-
-sol_fp = [0] * (TIMESTEPS+1) # returned quantity
-sol_fp[0] = np.array(v_fp.value)
-
-MAX_SWEEPS = 10000
-
-for i in range(TIMESTEPS):
-    
-    v_fp.updateOld()
-
-    res = 0.0
-    for r in range(MAX_SWEEPS):
-        resOld=res
-        res = eq.sweep(var=v_fp, dt=dt, underRelaxation=1.0)
-        if abs(res - resOld) < 1e-5: break # it has reached to the solution of the linear system
-    
-    print(r, res)
-      # Append to list
-    sol_fp[i+1] = copy.copy(v_fp.value[:])
-    print(i, v_fp.value)
+    # Boussinesq eq. for theta
+    eq = fp.TransientTerm() == fp.DiffusionTerm(coeff=(numerix.exp(t1)/t2 * (numerix.power(s2 * numerix.exp(-s1) * v_fp + numerix.exp(s2*b), t2/s2) - numerix.exp(t2*b))) / (s2 * v_fp + numerix.exp(s1 + s2*b))) + SOURCE
 
 
-# for i in range(niter):
-#     eq.solve(var=v_fp, dt=dt)
-#     sol_fp[i+1] = np.array(v_fp.value)
+    dt = 1.0
+    niter = int(TIMESTEPS/dt)
 
-print(f"FiPy time(s) = {time.time() - f_start_time}")  
+    sol_fp = [0] * (TIMESTEPS+1) # returned quantity
+    sol_fp[0] = np.array(v_fp.value)
 
-if plotOpt:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title(f'FiPy, dx={dx}, N={N}')
-    
-    plot_sol_fp = np.array(sol_fp)
-    # plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
-    x_fp = np.linspace(0, 2, num=N)
-    
-    for j in range(plot_sol_fp.shape[0]):
-        ys = j*np.ones(plot_sol_fp.shape[1])
-        ax.plot(x_fp, ys, plot_sol_fp[j,:])
+    MAX_SWEEPS = 100
 
-    
-#%%
-# Compare fipy vs cheby 
+    for i in range(TIMESTEPS):
+        
+        v_fp.updateOld()
 
-if plotOpt:
-    # In order to compare, interpolate the chebyshev and evaluate
-    # at fipy mesh centers: x = (0.5, 1.5 , ...)
-    import scipy.interpolate.interpolate as interp
-    
-    cheby_interp = interp.interp1d(x + 1, v_old) # The +1 is to begin at x=0
-    x_fp = mesh.cellCenters.value[0]
-    cheby_interpolated = cheby_interp(x_fp[0:N-1])
-    
-    # Plot together
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(x_fp, plot_sol_fp[-1], label='fipy')
-    ax.plot(x+1, v_old, label='chebyshev')
-    plt.legend()
-    
-    # Plot of difference
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_title('abs(FiPy-cheby)')
-    
-    ax.plot(x_fp[0:N-1], abs(plot_sol_fp[-1][0:N-1] - cheby_interpolated))
-    
+        res = 0.0
+        for r in range(MAX_SWEEPS):
+            resOld=res
+            res = eq.sweep(var=v_fp, dt=dt, underRelaxation=1.0)
+            if abs(res - resOld) < 1e-5: break # it has reached to the solution of the linear system
+        
+        print(r, res)
+          # Append to list
+        sol_fp[i+1] = copy.copy(v_fp.value[:])
+        print(i, v_fp.value)
+
+
+    # for i in range(niter):
+    #     eq.solve(var=v_fp, dt=dt)
+    #     sol_fp[i+1] = np.array(v_fp.value)
+
+    print(f"FiPy time(s) = {time.time() - f_start_time}")  
+
+    if plotOpt:
+        # Waterfall plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_title(f'FiPy, dx={dx}, N={N}')
+        
+        plot_sol_fp = np.array(sol_fp)
+        # plot_sol_fp = plot_sol_fp[0::int(niter/TIMESTEPS)] # NumPy slice -> start:stop:step
+        x_fp = np.linspace(0, 2, num=N)
+        
+        for j in range(plot_sol_fp.shape[0]):
+            ys = j*np.ones(plot_sol_fp.shape[1])
+            ax.plot(x_fp, ys, plot_sol_fp[j,:])
+
+        
+    #%%
+    # Compare fipy vs cheby 
+
+    if plotOpt:
+        # In order to compare, interpolate the chebyshev and evaluate
+        # at fipy mesh centers: x = (0.5, 1.5 , ...)
+        import scipy.interpolate.interpolate as interp
+        
+        cheby_interp = interp.interp1d(x + 1, v_old) # The +1 is to begin at x=0
+        x_fp = mesh.cellCenters.value[0]
+        cheby_interpolated = cheby_interp(x_fp[0:N-1])
+        
+        # Plot together
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(x_fp, plot_sol_fp[-1], label='fipy')
+        ax.plot(x+1, v_old, label='chebyshev')
+        plt.legend()
+        
+        # Plot of difference
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_title('abs(FiPy-cheby)')
+        
+        ax.plot(x_fp[0:N-1], abs(plot_sol_fp[-1][0:N-1] - cheby_interpolated))
+        
     
 #%%
     # Simple Cheby: d/dx(A(u) du/dx) -> D(A(u_cheby)*Du_cheby)
@@ -637,128 +645,131 @@ def F_newton(v, source, delta_t, v_old, diri_bc):
     
     return F
 
-print('\n >>>>> Finite diff Python started')
+RUN_FDPYTHON = False
+if RUN_FDPYTHON:
 
-c_start_time = time.time()
+    print('\n >>>>> Finite diff Python started')
 
-
-rel_tolerance = 1e-5
-abs_tolerance = 1e-5
-
-N = 10
-dt = 1.0 # in days
-dx = 2/N # in m 
-v_ini = np.ones(shape=N+1)*INI_VALUE
-
-# BC
-DIRI = 0.
-C = 0. # Neumann BC u'(x=N) = C/diffusivity'(u(x=N)). C=0. corresponds to no-flux
-v_ini[0] = DIRI
-
-v = v_ini[:]
-v_old = v_ini[:] # in the previous timestep
+    c_start_time = time.time()
 
 
+    rel_tolerance = 1e-5
+    abs_tolerance = 1e-5
+
+    N = 10
+    dt = 1.0 # in days
+    dx = 2/N # in m 
+    v_ini = np.ones(shape=N+1)*INI_VALUE
+
+    # BC
+    DIRI = 0.
+    C = 0. # Neumann BC u'(x=N) = C/diffusivity'(u(x=N)). C=0. corresponds to no-flux
+    v_ini[0] = DIRI
+
+    v = v_ini[:]
+    v_old = v_ini[:] # in the previous timestep
 
 
-# Relaxation parameter
-weight = 0.1
-
-# Notation
-a = dif
-a_u = dif_u
-e = 1/(2*dx**2)
-
-J = jacobian(v, dt, N)
-J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif, dif_u, DIRI, SOURCE)
-
-# J_banded = jacobian_diag_ordered(v, dt, N)
-# F = F_newton(v, SOURCE, dt, v_old, DIRI)
-
-# vectorial version
-# J_v = jacobian_vectorial(v, dt, N, a, a_u)
-
-# Plotting stuff
-v_plot = [0]*(TIMESTEPS+1)
-v_plot[0] = v_ini[:]
 
 
-MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+    # Relaxation parameter
+    weight = 0.1
 
-for t in range(TIMESTEPS):
-    # Update source
-    source = SOURCE
-    
-    # Update BC
-    DIRI = DIRI
-    # No-flux in the right all the time
-    
-    # Compute tolerance. Each day, a new tolerance because source changes
-    rel_tol = rel_tolerance * np.linalg.norm(F_newton(v, SOURCE, dt, v_old, DIRI))
+    # Notation
+    a = dif
+    a_u = dif_u
+    e = 1/(2*dx**2)
 
-    for i in range(0, MAX_INTERNAL_NITER):
-        # J = jacobian(v, dt, N)
-        # J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif_simple, dif_u_simple, DIRI, SOURCE)
-        J, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE)
-        # F = F_newton(v, SOURCE, dt, v_old, DIRI)
+    J = jacobian(v, dt, N)
+    J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif, dif_u, DIRI, SOURCE)
+
+    # J_banded = jacobian_diag_ordered(v, dt, N)
+    # F = F_newton(v, SOURCE, dt, v_old, DIRI)
+
+    # vectorial version
+    # J_v = jacobian_vectorial(v, dt, N, a, a_u)
+
+    # Plotting stuff
+    v_plot = [0]*(TIMESTEPS+1)
+    v_plot[0] = v_ini[:]
+
+
+    MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
+
+    for t in range(TIMESTEPS):
+        # Update source
+        source = SOURCE
         
-        eps_x = np.linalg.solve(J,-F)
-        # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
-        # eps_x = lu_solve(lu_factor(J), -F)
-        # eps_x = solve(J, -F)
-        v = v + weight*eps_x
+        # Update BC
+        DIRI = DIRI
+        # No-flux in the right all the time
+        
+        # Compute tolerance. Each day, a new tolerance because source changes
+        rel_tol = rel_tolerance * np.linalg.norm(F_newton(v, SOURCE, dt, v_old, DIRI))
 
-        # stopping criterion
-        residue = np.linalg.norm(F) - rel_tol
-        if residue < abs_tolerance:
-            print(f'Solution of the Newton linear system in {i} iterations')
-            break
-    
-    v_old = v[:]
-    v_plot[t+1] = v[:]
-    print(i, v_old)
-    
-    
+        for i in range(0, MAX_INTERNAL_NITER):
+            # J = jacobian(v, dt, N)
+            # J, J_banded, F = jacobian_and_F_vectorial(v, v_old, dt, N, dif_simple, dif_u_simple, DIRI, SOURCE)
+            J, _, F = jacobian_and_F_vectorial(v, v_old, dt, N, a, a_u, DIRI, SOURCE)
+            # F = F_newton(v, SOURCE, dt, v_old, DIRI)
+            
+            eps_x = np.linalg.solve(J,-F)
+            # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
+            # eps_x = lu_solve(lu_factor(J), -F)
+            # eps_x = solve(J, -F)
+            v = v + weight*eps_x
 
-print(f"Finite diff implicit time(s) = {time.time() - c_start_time}") 
+            # stopping criterion
+            residue = np.linalg.norm(F) - rel_tol
+            if residue < abs_tolerance:
+                print(f'Solution of the Newton linear system in {i} iterations')
+                break
+        
+        v_old = v[:]
+        v_plot[t+1] = v[:]
+        print(i, v_old)
+        
+        
 
-if plotOpt:
-    # Waterfall plot
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.set_title('Finite diff implicit')
-    
-    v_plot = np.array(v_plot)
-    x = np.linspace(0,dx*N, N+1)
-    
-    for j in range(v_plot.shape[0]):
-        ys = j*np.ones(v_plot.shape[1])
-        ax.plot(x,ys,v_plot[j,:])
+    print(f"Finite diff implicit time(s) = {time.time() - c_start_time}") 
 
-#%%
-# Compare fipy vs finite diff implicit 
-if plotOpt:
-    # In order to compare, interpolate the finite diff and evaluate
-    # at fipy mesh centers: x = (0.5, 1.5 , ...)
-    import scipy.interpolate.interpolate as interp
-    
-    fdiff_interp = interp.interp1d(x, v_old)
-    x_fp = mesh.cellCenters.value[0][0:-1]
-    fdiff_interpolated = fdiff_interp(x_fp)
-    
-    # Plot together
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
-    ax.plot(x, v_old, label='finite diff implicit')
-    plt.legend()
-    
-    # Plot of difference
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_title('abs(FiPy-finite diff implicit)')
-    
-    ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
+    if plotOpt:
+        # Waterfall plot
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        ax.set_title('Finite diff implicit')
+        
+        v_plot = np.array(v_plot)
+        x = np.linspace(0,dx*N, N+1)
+        
+        for j in range(v_plot.shape[0]):
+            ys = j*np.ones(v_plot.shape[1])
+            ax.plot(x,ys,v_plot[j,:])
+
+    #%%
+    # Compare fipy vs finite diff implicit 
+    if plotOpt:
+        # In order to compare, interpolate the finite diff and evaluate
+        # at fipy mesh centers: x = (0.5, 1.5 , ...)
+        import scipy.interpolate.interpolate as interp
+        
+        fdiff_interp = interp.interp1d(x, v_old)
+        x_fp = mesh.cellCenters.value[0][0:-1]
+        fdiff_interpolated = fdiff_interp(x_fp)
+        
+        # Plot together
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.plot(x_fp, plot_sol_fp[-1][:-1], label='fipy')
+        ax.plot(x, v_old, label='finite diff implicit')
+        plt.legend()
+        
+        # Plot of difference
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        ax.set_title('abs(FiPy-finite diff implicit)')
+        
+        ax.plot(x_fp, abs(plot_sol_fp[-1][:-1] - fdiff_interpolated))
 
 
 #%% FORTRAN BUSINESS
@@ -771,8 +782,8 @@ print('\n >>>>> Finite diff FORTRAN started')
 c_start_time = time.time()
 
 
-rel_tolerance = 1e-5
-abs_tolerance = 1e-5
+rel_tolerance = 1e-7
+abs_tolerance = 1e-7
 
 N = 10
 
@@ -789,7 +800,7 @@ v_old = v_ini[:] # in the previous timestep
 b = np.ones(shape=v.shape) * (-4)
 
 # Relaxation parameter
-weight = 0.01
+weight = 0.5
 
 # J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
 
@@ -798,7 +809,7 @@ v_plot = [0]*(TIMESTEPS+1)
 v_plot[0] = v_ini[:]
 
 
-MAX_INTERNAL_NITER = 100000 # max niters to solve nonlinear algebraic eq of Newton's method
+MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 for t in range(TIMESTEPS):
     # Update source
@@ -810,8 +821,9 @@ for t in range(TIMESTEPS):
     # No-flux in the right all the time
     
     # Compute tolerance. Each day, a new tolerance because source changes
-    _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI_BC, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
-    rel_tol = rel_tolerance * np.linalg.norm(F)
+    #_, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, diri_bc=DIRI_BC, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
+    #rel_tol = rel_tolerance * np.linalg.norm(F)
+    rel_tol = rel_tolerance * np.linalg.norm(v)
     print(rel_tol)
     
     for i in range(0, MAX_INTERNAL_NITER):
@@ -821,12 +833,17 @@ for t in range(TIMESTEPS):
         # eps_x = solve_banded((1,1), J_banded, -F, overwrite_ab=True, overwrite_b=True, check_finite=False)
         # eps_x = lu_solve(lu_factor(J), -F)
         # eps_x = solve(J, -F)
+
+        # stopping criterion
+        # residue = np.linalg.norm(F[1:]) - rel_tol
+        residue = np.linalg.norm(weight*eps_x) - rel_tol
+
+        # update
         v = v + weight*eps_x
         # v = np.where(v<0, 0, v)
 
-        # stopping criterion
-        residue = np.linalg.norm(F[1:]) - rel_tol
         if residue < abs_tolerance:
+
             print(f'Solution of the Newton linear system in {i} iterations')
             break
     
