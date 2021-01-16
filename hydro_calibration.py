@@ -45,16 +45,18 @@ def hydro_1d_half_fortran(theta_ini, nx, dx, dt, params, ndays, sensor_loc,
         
         
         # Compute tolerance. Each day, a new tolerance because source changes
-        _, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, s1=s1, s2=s2, t1=t1, t2=t2, source=source)
-        rel_tol = REL_TOLERANCE * np.linalg.norm(F)
+        rel_tol = REL_TOLERANCE * np.linalg.norm(v)
 
         for i in range(0, MAX_INTERNAL_NITER):
             J, F = fd.j_and_f(n=nx, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, s1=s1, s2=s2, t1=t1, t2=t2, source=source)       
             eps_x = np.linalg.solve(J,-F)
-            v = v + weight*eps_x
-    
+            
             # stopping criterion
-            residue = np.linalg.norm(F) - rel_tol
+            residue = np.linalg.norm(weight*eps_x) - rel_tol
+
+            # update
+            v = v + weight*eps_x
+       
             if residue < ABS_TOLERANCE:
                 break
         

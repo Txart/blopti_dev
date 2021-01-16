@@ -41,17 +41,20 @@ def solve_with_given_N(N, params):
     for t in range(NDAYS):
         # Compute tolerance. Each day, a new tolerance because source changes
         _, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
-        rel_tol = rel_tolerance * np.linalg.norm(F)
+        rel_tol = rel_tolerance * np.linalg.norm(v)
         print(rel_tol)
         
         for i in range(0, MAX_INTERNAL_NITER):
             J, F = fd.j_and_f(n=N, v=v, v_old=v_old, b=b, delta_t=dt, delta_x=dx, s1=s1, s2=s2, t1=t1, t2=t2, source=SOURCE)
             
             eps_x = np.linalg.solve(J,-F)
+            
+            # stopping criterion
+            residue = np.linalg.norm(weight*eps_x) - rel_tol
+            
+            #update
             v = v + weight*eps_x
     
-            # stopping criterion
-            residue = np.linalg.norm(F) - rel_tol
             if residue < abs_tolerance:
                 print(f'Solution of the Newton linear system in {i} iterations')
                 break
