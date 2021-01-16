@@ -161,16 +161,17 @@ cmap = plt.cm.Accent
 cmaplist = [cmap(int(i)) for i in range(0, len(Ns))]
 
 for nparam, params in enumerate(rnd_params):
-    plt.figure(nparam, figsize=(8, 6), dpi=400)
-    for nN, N in enumerate(Ns):
-        x = np.linspace(0,2,N)
-        plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
-        # plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+    if nparam % int(N_PARAMS/10) == 0: # Plot only 10 figs
+        plt.figure(nparam, figsize=(8, 6), dpi=400)
+        for nN, N in enumerate(Ns):
+            x = np.linspace(0,2,N)
+            plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
+            # plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+            
         
-    
-    plt.title(params)
-    plt.legend()
-    plt.savefig(f'acc_plots/{nparam}.png')
+        plt.title(params)
+        plt.legend()
+        plt.savefig(f'acc_plots/{nparam}.png')
     
 # Plot times
 times_np = np.array(times)
