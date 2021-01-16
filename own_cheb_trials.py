@@ -23,8 +23,8 @@ params = [ -0.9, 1, 1.6, 10]
 s1 = params[0]; s2 = params[1]
 t1 = params[2]; t2 = params[3]
 SOURCE = -0.003 # P- ET
-INI_VALUE = 0.5
-DIRI_BC = 0.3
+INI_VALUE = 0.3
+DIRI_BC = 0.5
 TIMESTEPS = 3
 
 #%%
