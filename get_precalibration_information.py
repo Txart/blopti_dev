@@ -22,7 +22,7 @@ parser = argparse.ArgumentParser(description='Get information for calibration')
  
 parser.add_argument('--onlyp', default=1, help='1 or 0. Choose 1 to operate only with P sensors (not DOSANxxx or DAYUNxxx). Default: 1.', type=bool)
 parser.add_argument('--plot', default=1, help='1 or 0. Choose 1 to plot historic sensor data. Default: 1', type=bool)
-parser.add_argument('--ncdays', default=2, help='(int) Minimum value of consecutive days shown. Default: 2', type=int)
+parser.add_argument('--ncdays', default=10, help='(int) Minimum value of consecutive days shown. Default: 2', type=int)
 parser.add_argument('--drydown', default =1, help='1 or 0. Choose 1 to print only consecutive days with lowering water table. Default:1', type=bool)
 
 args = parser.parse_args()
@@ -42,7 +42,8 @@ if only_P_sensors > 1 or plotOpt > 1:
 """
 # read, preprocess data
 fn_weather_data = Path('data/weather_station_historic_data.xlsx')
-dfs_by_transects = get_data.main(fn_weather_data)
+fn_wtd_data = Path('data/historic_wtd_data_18-1-2021.xlsx')
+dfs_by_transects = get_data.main(fn_weather_data, fn_wtd_data, api_call=False)
 
 if only_P_sensors:
     ps = [k for k in dfs_by_transects.keys() if 'P0' in k]
@@ -71,7 +72,7 @@ for transect_name, transect_df in dfs_by_transects.items():
     
     consecutive_days_mask = day_number_dif_with_previous_day == 1
     if is_drydown:
-        drydown_mask = wt_dif_with_previous_day <= 0 # water table goes down.
+        drydown_mask = wt_dif_with_previous_day <= 0 # water table goes down condition
     else:
         drydown_mask = np.ones(shape=consecutive_days_mask.shape, dtype=bool)
     combined_mask = np.logical_and(drydown_mask, consecutive_days_mask)
@@ -81,9 +82,9 @@ for transect_name, transect_df in dfs_by_transects.items():
     for i,good_day in enumerate(combined_mask):
         if good_day:
             set_of_good_days.update([daylist[i], daylist[i+1]])
-        if not good_day:
+        elif not good_day:
             if len(set_of_good_days) >= ncdays:
-                print(f'>>>>>{list(set_of_good_days)}')
+                print(f'>>>>>{sorted(list(set_of_good_days))}')
             set_of_good_days = set()
     
     # Check if the last is True!

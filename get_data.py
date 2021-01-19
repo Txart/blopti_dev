@@ -1,5 +1,6 @@
 import requests
 import pandas as pd
+import numpy as np
 import sys
 from pathlib import Path
 if sys.version_info[0] < 3:  # Fork for python2 and python3 compatibility
@@ -38,6 +39,11 @@ def read_historic_weather_data(fn_w):
     
     return df_w
 
+def read_historic_WTD_data(fn_wtd):
+    df_wtd =  pd.read_excel(fn_wtd)
+    
+    return df_wtd
+
 # TODO: standarize time and date input
 def get_wt_data():
     url_base = "https://dashboard.sustainabilitytech.com/api/"
@@ -45,7 +51,7 @@ def get_wt_data():
     version = 'v1/'
     format_csv = 'csv/'
     collection = 'measurement/module[waterTable]/'
-    created = 'created=-1/100000///'
+    created = 'created=1/10000///'
     #join = '>10-03-2020&<12-03-2020'
     sensor = 'sensor=devId:label'
     
@@ -259,12 +265,22 @@ def transects_and_weather_together(dfs_by_sensor_label, daily_weather_df):
    
 #%%
     
-def main(fn_weather_data):
+def main(fn_weather_data, fn_wtd_data, api_call=False):
+    # fn_wtd_data location of historic wtd data
+    # If api_call = true, ignore fn_wtd_data and retrieve 1st year information 
+    # through an api call.
     """
      Get data
     """
     # WTD
-    wt_df = get_wt_data() 
+    if api_call:
+        wt_df = get_wt_data()
+    else:
+        wt_df =  read_historic_WTD_data(fn_wtd_data)
+        # Bring wt_df to the same format it would have if we were calling it from the API
+        wt_df = wt_df.astype({'created':'str'})
+        list_of_formated_datetimes = [dt.replace(' ', 'T') for dt in list(wt_df['created'])]
+        wt_df['created'] = np.array(list_of_formated_datetimes)
     
     # Weather
     fn_weather_data = str(fn_weather_data.absolute())
