@@ -47,68 +47,15 @@ N_WALKERS = args.nwalkers
 """
  Get data from measurements
  Choose relevant transects.
- Slice by date
+
 """ 
 fn_weather_data = Path('data/weather_station_historic_data.xlsx')
-dfs_by_transects = get_data.main(fn_weather_data)
-
-# Choose transects
-relevant_transects = ['P002', 'P012', 'P015', 'P016', 'P018']
-dfs_relevant_transects = {x: dfs_by_transects[x] for x in relevant_transects}
- 
-dfs_sliced_relevant_transects = {}
-# Slice by julian day
-jday_bounds = {'P002':[775, 817], # 660: 22/10/2019; 830: 9/4/2020
-               'P012':[740, 771],
-               'P015':[707, 724],
-               'P016':[707, 731],
-               'P018':[815, 827]
-               }
-
-for key, df in dfs_relevant_transects.items():
-    sliced_df = df.loc[jday_bounds[key][0]:jday_bounds[key][1]]
-    dfs_sliced_relevant_transects[key] = sliced_df
-
-# TODO: Maybe put all this in an excel    
-# Data invented. Check from raster data
-# DEM_RESOLUTION = 100 # m/pixel
-sensor_locations = {'P002':[0, -1],
-                    'P012':[0, -1],
-                    'P015':[0, -1],
-                    'P016':[0, -1],
-                    'P018':[0, -1]
-                    }  # sensor locations wrt position in grid
-
-transect_length = {'P002': 120,
-                   'P012': 190,
-                   'P015': 127,
-                   'P016': 485,
-                   'P018': 210
-                   } # length in meters, derived from DTM
-
-surface_elev = {'P002':[4.68, 4.8],
-                'P012':[6.03, 6.24],
-                'P015':[9.06, 8.96],
-                'P016':[9.02, 9.1],
-                'P018':[9.94, 9.03]} # m above common ref point
-
-peat_depth = {'P002': -2,
-              'P012': -8,
-              'P015': -8,
-              'P016': -8,
-              'P018': -8} # m below lowest peat surface elevation
-
-
-# put all data into one meta-dictionary ordered by transect
-data_dict = {}
-for tran in relevant_transects:
-    data_dict[tran] = {'df':dfs_sliced_relevant_transects[tran],
-                       'sen_loc':sensor_locations[tran],
-                       'surface_elev':surface_elev[tran],
-                       'peat_depth':peat_depth[tran],
-                       'transect_length': transect_length[tran]}  
-    
-    
+fn_wtd_data = Path('data/historic_wtd_data_18-1-2021.xlsx')
+fn_transect_info = Path('data/transect_info.xlsx')
+fn_selected_dates = Path('data/transect_selected_dates.xlsx')
+transect_info = pd.read_excel(fn_transect_info)
+transect_selected_dates = pd.read_excel(fn_selected_dates)
+dfs_by_transects = get_data.main(fn_weather_data, fn_wtd_data, api_call=False)
 
 
 #%%
@@ -140,13 +87,17 @@ def log_likelihood(params):
     
     # print(f'parameters: {params}')
     
-    for transect_name, dic in data_dict.items():
+    for _, row in transect_selected_dates.iterrows():
         # print(f'Starting with transect: {transect_name}')
-        df = dic['df']
-        sensor_locations = dic['sen_loc']
-        surface_elev = dic['surface_elev']
-        peat_depth = dic['peat_depth']
-        transect_length = dic['transect_length']
+        transect_name = row['transect_name']
+        date0 = row['selected_period_begin']
+        date1 = row['selected_period_end']
+        df = dfs_by_transects[transect_name].loc[date0:date1]
+        ti = transect_info[transect_info['transect_name']==transect_name]
+        sensor_locations = (float(ti['sensor0_location']), float(ti['sensor1_location']))
+        surface_elev = [float(ti['surface_elev_sensor0']), float(ti['surface_elev_sensor1'])]
+        peat_depth = float(ti['peat_depth'])
+        transect_length = float(ti['transect_length'])
         
         nx = int(transect_length/dx)
         
