@@ -117,6 +117,8 @@ def log_likelihood(params):
 
         ndays = measurements.shape[0] - 1 # first day is ini cond
         precip = df['P'].to_numpy()
+        # No precipitation in this version of the calibration!
+        precip = np.zeros(shape=precip.shape)
         evapotra = df['ET'].to_numpy()
         
         if len(sensor_column_names) == 2: # P0xx transects
