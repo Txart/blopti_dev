@@ -143,7 +143,7 @@ times = [[] for i in range(N_PARAMS)]
 # v_sols_fipy = [[] for i in range(N_PARAMS)]
 # times_fipy = [[] for i in range(N_PARAMS)]
 
-for nN, N in enumerate(Ns):
+for _, N in enumerate(Ns):
     for nparam, params in enumerate(rnd_params):
         v_sol, time_spent = solve_with_given_N(N-1, params)
         # v_sol_fipy, time_spent_fipy = solve_fipy_with_given_N(N, params)
@@ -156,80 +156,76 @@ for nN, N in enumerate(Ns):
         
 
 #%%
-# Plot accuracies
+# Plot accuracies. NO longer used. Instead, compute difference of last 
+# pixel and plot that
         
-cmap = plt.cm.Accent
-cmaplist = [cmap(int(i)) for i in range(0, len(Ns))]
+        
+# cmap = plt.cm.Accent
+# cmaplist = [cmap(int(i)) for i in range(0, len(Ns))]
 
-for nparam, params in enumerate(rnd_params):
-    if nparam % int(N_PARAMS/10) == 0: # Plot only 10 figs
-        plt.figure(nparam, figsize=(8, 6), dpi=400)
-        for nN, N in enumerate(Ns):
-            x = np.linspace(0,2,N)
-            plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
-            # plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
+# for nparam, params in enumerate(rnd_params):
+#     if nparam % int(N_PARAMS/10) == 0: # Plot only 10 figs
+#         plt.figure(nparam, figsize=(8, 6), dpi=400)
+#         for nN, N in enumerate(Ns):
+#             x = np.linspace(0,2,N)
+#             plt.plot(x, v_sols[nparam][nN], color=cmaplist[nN], label=str(N))
+#             # plt.plot(x, v_sols_fipy[nparam][nN], '--', color=cmaplist[nN], label=str(N) + ' fipy')
             
         
-        plt.title(params)
-        plt.legend()
-        plt.savefig(f'acc_plots/{nparam}.png')
+#         plt.title(params)
+#         plt.legend()
+#         plt.savefig(f'acc_plots/{nparam}.png')
     
-# Plot times
-times_np = np.array(times)
-# times_fipy_np = np.array(times_fipy)
-time_avgs = np.mean(times_np, axis=0)
-# time_avgs_fipy = np.mean(times_fipy_np, axis=0)
+# # Plot times
+# times_np = np.array(times)
+# # times_fipy_np = np.array(times_fipy)
+# time_avgs = np.mean(times_np, axis=0)
+# # time_avgs_fipy = np.mean(times_fipy_np, axis=0)
 
-plt.figure('times')
-plt.plot(Ns, time_avgs, 'o')
-# plt.plot(Ns, time_avgs_fipy, 'x')
-plt.title('Comp times')
-plt.savefig('acc_plots/acc_comp_times.png')
+# plt.figure('times')
+# plt.plot(Ns, time_avgs, 'o')
+# # plt.plot(Ns, time_avgs_fipy, 'x')
+# plt.title('Comp times')
+# plt.savefig('acc_plots/acc_comp_times.png')
 
 #%%
 # pickle resulting values
 import pickle
+time_avgs = np.mean(np.array(times), axis=0)
 save_vars = (v_sols, time_avgs)
 pickle.dump(save_vars, open("resulting_values.p", "wb"))
 
 
  
 #%%    
-# plot avg comparison of last mesh point and computational times FOR FORTRAN
-# compute avg of last mesh point
-avg_last_mesh_point = np.zeros(len(Ns))
-for sol_para in v_sols:
-    for i,n_para in enumerate(sol_para):
-        avg_last_mesh_point[i] = avg_last_mesh_point[i] + n_para[-1]
+# plot comparison of last mesh point and computational times 
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 
-avg_last_mesh_point = avg_last_mesh_point/N_PARAMS
+# can also run this independently if I have the pickle
+v_sols, time_avgs = pickle.load(open("resulting_values.p","rb"))
 
-# compute relative difference of each N with respect to the highest N
-rel_diff_last_mesh_point = (avg_last_mesh_point - avg_last_mesh_point[-1])/avg_last_mesh_point[-1]
+Ns_string = [str(N) for N in Ns]
+df = pd.DataFrame(columns=Ns_string)
 
-# plot with 2 axes
+diff_last_mesh_point = np.zeros(shape=(N_PARAMS, len(Ns)))
+for p in range(N_PARAMS):
+    for n,_ in enumerate(Ns):
+        rel_diff = (v_sols[p][n][-1] - v_sols[p][-1][-1])/v_sols[p][-1][-1]
+        diff_last_mesh_point[p][n] = rel_diff
 
-fig, ax = plt.subplots(constrained_layout=True)
+# clean of NaNs
+# clean_diff_last_mesh = diff_last_mesh_point[np.logical_not(np.isnan(diff_last_mesh_point))]
 
-ax.plot(100/np.array(Ns[::-1]), rel_diff_last_mesh_point[::-1], 'o')
-ax.set_xlabel(r'$\Delta x$ (m)')
-ax.set_ylabel(r'$(\theta_N(\Delta x) - \theta_N(max\Delta x))/\theta_N(max\Delta x)$')
-ax.set_title('Accuracy experiments')
-ax.set_ylim(-1.1 * rel_diff_last_mesh_point.max(), 1.1 * rel_diff_last_mesh_point.max())
-
-ax2 = ax.twinx()
-ax2.set_ylabel('Avg comp. time (s)')
-ax2.plot(100/np.array(Ns[::-1]), time_avgs[::-1], 'x', color='orange')
-
-plt.savefig('acc_plots/combined_diff_and_comp_times.png')
-        
+for n,nstring in enumerate(Ns_string):
+    df[nstring] = diff_last_mesh_point[:,n]
 
 
+sns_plot = sns.violinplot(data=df)
+sns_plot.set(xlabel='N', ylabel='relative difference in last mesh point')
 
-
-
-
-
+plt.savefig("acc_violinplot.png")
 
 
 

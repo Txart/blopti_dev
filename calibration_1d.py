@@ -95,9 +95,12 @@ def log_likelihood(params):
         df = dfs_by_transects[transect_name].loc[date0:date1]
         ti = transect_info[transect_info['transect_name']==transect_name]
         sensor_locations = (float(ti['sensor0_location']), float(ti['sensor1_location']))
-        surface_elev = [float(ti['surface_elev_sensor0']), float(ti['surface_elev_sensor1'])]
         peat_depth = float(ti['peat_depth'])
         transect_length = float(ti['transect_length'])
+        surface_elev = [float(ti['surface_elev_sensor0']), float(ti['surface_elev_sensor1'])]
+        df.loc[:,'sensor_0'] += surface_elev[0]
+        df.loc[:,'sensor_1'] += surface_elev[1]
+        
         
         nx = int(transect_length/dx)
         
