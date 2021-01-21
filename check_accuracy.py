@@ -28,7 +28,7 @@ def solve_with_given_N(N, params):
     v = v_ini[:]
     v_old = v_ini[:] # in the previous timestep
     
-    NDAYS = 100
+    NDAYS = 50
     
     b = np.ones(shape=v.shape) * (-4)
     
@@ -225,7 +225,7 @@ for n,nstring in enumerate(Ns_string):
 sns_plot = sns.violinplot(data=df)
 sns_plot.set(xlabel='N', ylabel='relative difference in last mesh point')
 
-plt.savefig("acc_violinplot.png")
+plt.savefig("acc_plots/acc_violinplot.png")
 
 
 
