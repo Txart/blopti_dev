@@ -120,9 +120,9 @@ def solve_fipy_with_given_N(N, params):
 
 #%%
 # Params
-DIRI = 0.3
+DIRI = 0.1
 SOURCE = -2/1000
-INI_VALUE = 0.1
+INI_VALUE = 0.3
 MAX_INTERNAL_NITER = 10000 # max niters to solve nonlinear algebraic eq of Newton's method
 
 rel_tolerance = 1e-5

@@ -44,6 +44,8 @@ if only_P_sensors > 1 or plotOpt > 1:
 fn_weather_data = Path('data/weather_station_historic_data.xlsx')
 fn_wtd_data = Path('data/historic_wtd_data_18-1-2021.xlsx')
 dfs_by_transects = get_data.main(fn_weather_data, fn_wtd_data, api_call=False)
+fn_transect_info = Path('data/transect_info.xlsx')
+transect_info = pd.read_excel(fn_transect_info)
 
 if only_P_sensors:
     ps = [k for k in dfs_by_transects.keys() if 'P0' in k]
@@ -52,6 +54,21 @@ if only_P_sensors:
 # Take out some bad data:
 dfs_by_transects.pop('P014')
 dfs_by_transects.pop('P020')
+
+#%%
+# """
+# Correct elevation difference between sensors for P002, P012, P015, P016, P018
+# The rest are not corrected! check file Elevation_Correction_Plots.xlsx
+# and transect_info.xlsx to change this
+# """
+print(">>>>>> WARNING:")
+print("Only transects P002, P012, P015, P016 and P018 have been corrected for relative elevaation difference")
+corrected_transects = ['P002', 'P012', 'P015', 'P016', "P018"]
+for ct in corrected_transects:
+    sen0ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor0'])
+    sen1ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor1'])
+    dfs_by_transects[ct]['sensor_0'] += sen0ele
+    dfs_by_transects[ct]['sensor_1'] += sen1ele
 
 
 #%%
@@ -62,6 +79,7 @@ consecutive days that follow  conditions 1), 2) AND 2):
     2) Days are consecutive days in the calendar
     3) There are more than ncdays consecutive days
 """
+
 for transect_name, transect_df in dfs_by_transects.items():
     print(f'Transect name: {transect_name}')
     daylist = transect_df['julian_day'].to_numpy()
