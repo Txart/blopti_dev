@@ -28,7 +28,7 @@ def solve_with_given_N(N, params):
     v = v_ini[:]
     v_old = v_ini[:] # in the previous timestep
     
-    NDAYS = 50
+    NDAYS = 100
     
     b = np.ones(shape=v.shape) * (-4)
     
@@ -131,10 +131,10 @@ abs_tolerance = 1e-5
 
 #%%
 # Run accuracy tests
-Ns = [10, 25, 50, 100]
+Ns = [10, 25, 50, 100, 200]
 
 
-N_PARAMS = 1000
+N_PARAMS = 100
 rnd_params = np.random.rand(N_PARAMS,4) * 3
 
 v_sols = [[] for i in range(N_PARAMS)]
