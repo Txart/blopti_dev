@@ -261,7 +261,7 @@ def advection_diffusion_vectorial(dt, dx, a, b, niter, h_ini, A, source):
     L_adv = L_advection(cnm)
     
     for t in range(niter):
-       h = forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool)
+       h = forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
     return(h)
 
 # Plot solutions over time
@@ -280,8 +280,8 @@ if plotOpt:
     for t in range(niter):
         if t % (int(niter/10))==0:
             plt.plot(h_adv, color='blue', alpha=0.5, label='advection')
-            plt.plot(h_dif, color='orange', alpha=0.5, label='diffusion')
-            plt.plot(h_advdif, color='green', alpha=0.5, label='adv + diff')
+            # plt.plot(h_dif, color='orange', alpha=0.5, label='diffusion')
+            # plt.plot(h_advdif, color='green', alpha=0.5, label='adv + diff')
         h_adv = forward_Euler_adv_diff_single_step(h_adv, h_ini, dt, dx, 0, 1, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
         h_dif = forward_Euler_adv_diff_single_step(h_dif, h_ini, dt, dx, 1, 0, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
         h_advdif = forward_Euler_adv_diff_single_step(h_advdif, h_ini, dt, dx, 1, 1, L, L_adv, source, diri_bc_bool, neumann_bc_bool)

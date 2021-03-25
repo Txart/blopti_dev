@@ -317,7 +317,7 @@ def main(fn_weather_data, fn_wtd_data, api_call=False):
     """       
     dfs_by_transects = transects_and_weather_together(dfs_by_sensor_label, daily_weather_df)
 
-    return dfs_by_transects           
+    return dfs_by_transects, daily_weather_df           
                                      
             
 

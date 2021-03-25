@@ -11,6 +11,7 @@ import matplotlib.ticker as ticker
 import pandas as pd
 import numpy as np
 from pathlib import Path
+import copy
 
 import get_data
 
@@ -20,7 +21,7 @@ Parse command-line arguments
 """
 parser = argparse.ArgumentParser(description='Get information for calibration')
  
-parser.add_argument('--onlyp', default=1, help='1 or 0. Choose 1 to operate only with P sensors (not DOSANxxx or DAYUNxxx). Default: 1.', type=bool)
+parser.add_argument('--onlyp', default=0, help='1 or 0. Choose 1 to operate only with P sensors (not DOSANxxx or DAYUNxxx). Default: 1.', type=bool)
 parser.add_argument('--plot', default=1, help='1 or 0. Choose 1 to plot historic sensor data. Default: 1', type=bool)
 parser.add_argument('--ncdays', default=10, help='(int) Minimum value of consecutive days shown. Default: 2', type=int)
 parser.add_argument('--drydown', default =1, help='1 or 0. Choose 1 to print only consecutive days with lowering water table. Default:1', type=bool)
@@ -56,20 +57,35 @@ dfs_by_transects.pop('P014')
 dfs_by_transects.pop('P020')
 
 #%%
-# """
-# Correct elevation difference between sensors for P002, P012, P015, P016, P018
-# The rest are not corrected! check file Elevation_Correction_Plots.xlsx
-# and transect_info.xlsx to change this
-# """
-print(">>>>>> WARNING:")
-print("Only transects P002, P012, P015, P016 and P018 have been corrected for relative elevaation difference")
-corrected_transects = ['P002', 'P012', 'P015', 'P016', "P018"]
-for ct in corrected_transects:
-    sen0ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor0'])
-    sen1ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor1'])
-    dfs_by_transects[ct]['sensor_0'] += sen0ele
-    dfs_by_transects[ct]['sensor_1'] += sen1ele
+"""
+ Levelling. Correct for elevation difference between sensors of the same transect
+"""
+all_levelled_transects = list(transect_info[transect_info['surface_elev_sensor_canal'].notnull()]['transect_name'])
+levelled_transects_P = [tr for tr in all_levelled_transects if 'P' in tr]
+levelled_transects_P.remove('P007')
+levelled_transects_DOSAN_and_DAYUN = [tr for tr in all_levelled_transects if 'D' in tr]
+levelled_transects_TN = [tr for tr in all_levelled_transects if 'TN' in tr]
 
+levelled_dfs_by_transects = copy.deepcopy(dfs_by_transects)
+# Different loops for different transects because the sensor number per
+# transect is different
+for ct in levelled_transects_P:
+    sen0ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor_canal'])
+    sen1ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor1'])
+    levelled_dfs_by_transects[ct]['sensor_0'] += sen0ele
+    levelled_dfs_by_transects[ct]['sensor_1'] += sen1ele
+
+for ct in levelled_transects_DOSAN_and_DAYUN:
+    sen0ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor_canal'])
+    sen1ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor_a'])
+    sen2ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor_b'])
+    sen3ele = float(transect_info[transect_info['transect_name']==ct]['surface_elev_sensor_c'])
+    levelled_dfs_by_transects[ct]['sensor_0'] += sen0ele
+    levelled_dfs_by_transects[ct]['sensor_1'] += sen1ele
+    levelled_dfs_by_transects[ct]['sensor_2'] += sen2ele
+    levelled_dfs_by_transects[ct]['sensor_3'] += sen3ele
+    
+# TODO: level and plot TN transect data
 
 #%%
 """
@@ -114,17 +130,18 @@ for transect_name, transect_df in dfs_by_transects.items():
     
 #%%
 """
- Plot data by sensor pairs
+ Plot data by transects, levelled and unlevelled
 """   
 col_labels_not_to_plot = ['julian_day', 'Date', 'T_ave', 'T_min', 'T_max', 'P', 'ET', 'rel_hum', 'windspeed', 'air_pressure']
 
 if plotOpt:
-    print('Plotting transect historical data... \n')
+    print('Plotting unlevelled transect historical data... \n')
     
+    # unlevelled
     for transect_name, transect_df in dfs_by_transects.items():
         
         df_sorted = transect_df.sort_index()
-        
+
         fig, ax = plt.subplots(num=transect_name)
         ax.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
         ax.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
@@ -145,6 +162,34 @@ if plotOpt:
         ax2.bar(x=df_sorted['Date'], height=p_minus_et, color='blue', alpha=0.3, width=1)
         
         ax.legend()
+    
+    print('Plotting levelled transect historical data... \n')
+    # levelled    
+    for transect_name, transect_df in levelled_dfs_by_transects.items():
+        
+        df_sorted = transect_df.sort_index()
+
+        fig, ax = plt.subplots(num=transect_name + '_levelled')
+        ax.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
+        ax.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
+        ax.set_ylabel('WTD (m)')
+        ax.set_ylim([-2,.50])
+        for col_name in df_sorted: # iterate dataframe by columns
+            if col_name not in col_labels_not_to_plot: # i.e., plot only sensor values
+                ax.plot(df_sorted['Date'], df_sorted[col_name], 'o', label=col_name)
+        
+        # plot Precip and ET
+        ax2 = ax.twinx()
+        ax2.margins(x=0)
+        ax2.xaxis.set_major_locator(ticker.MaxNLocator(4)) # make only 4 ticks in the x axis
+        ax2.xaxis.set_minor_locator(ticker.MaxNLocator(4*5))
+        ax2.set_ylabel('P-ET (mm/day)')
+        ax2.set_ylim([-50, 100])
+        p_minus_et = (df_sorted['P'] - df_sorted['ET']) * 1000 #m/day -> mm/day
+        ax2.bar(x=df_sorted['Date'], height=p_minus_et, color='blue', alpha=0.3, width=1)
+        
+        ax.legend()
+        
         
     plt.show()
     

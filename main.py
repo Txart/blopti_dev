@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 
-import preprocess_data,  utilities, hydro_standard, hydro_utils, read
+import preprocess_data,  utilities, hydro_standard, hydro_utils, read, get_data
 
 
 #%%
@@ -52,9 +52,28 @@ blocks_fn = Path(filenames_df[filenames_df.Content == 'canal_blocks_raster'].Pat
 sensor_loc_fn = Path(filenames_df[filenames_df.Content == 'sensor_locations'].Path.values[0])
 params_fn = Path(filenames_df[filenames_df.Content == 'parameters'].Path.values[0])
 WTD_folder = Path(filenames_df[filenames_df.Content == 'WTD_input_and_output_folder'].Path.values[0])
-weather_fn = Path(filenames_df[filenames_df.Content == 'historic_precipitation'].Path.values[0])
+fn_weather_data = Path(filenames_df[filenames_df.Content == 'historic_precipitation'].Path.values[0])
+fn_wtd_data = Path(filenames_df[filenames_df.Content == 'wtd_measurements'].Path.values[0])
+
 # Choose smaller study area
 STUDY_AREA = (0,-1), (0,-1)
+
+# read weather data
+weather_df = get_data.read_historic_weather_data(fn_weather_data)
+weather_df = get_data.clean_weather_data(weather_df)
+daily_weather_df = get_data.aggregate_weather_to_daily(weather_df)
+daily_weather_df = get_data.compute_and_append_ET(daily_weather_df)
+daily_weather_df['P'] = daily_weather_df['P']/1000
+daily_weather_df['ET'] = daily_weather_df['ET']/1000
+
+selected_julian_day_range = [638, 1078]
+if selected_julian_day_range[1] - selected_julian_day_range[0] != DAYS:
+    print('>>>>> WARNING: number of simulation days and selected dates range are different')
+precip = daily_weather_df.loc[selected_julian_day_range[0]:selected_julian_day_range[1]]['P'].to_numpy()
+evapotra = daily_weather_df.loc[selected_julian_day_range[0]:selected_julian_day_range[1]]['ET'].to_numpy()
+
+
+df_weather_and_wtd_measurements, daily_weather_df = get_data.main(fn_weather_data, fn_wtd_data, api_call=False)
 
 wtd_old_fn = dem_rst_fn # not reading from previous wtd raster
 can_arr, wtd_old , dem, peat_type_arr, peat_depth_arr, blocks_arr, sensor_loc_arr = preprocess_data.read_preprocess_rasters(STUDY_AREA, wtd_old_fn, can_rst_fn, dem_rst_fn, peat_depth_rst_fn, peat_depth_rst_fn, blocks_fn, sensor_loc_fn)
@@ -72,12 +91,13 @@ BLOCK_HEIGHT = PARAMS_df.block_height[0]; CANAL_WATER_LEVEL = PARAMS_df.canal_wa
 DIRI_BC = PARAMS_df.diri_bc[0]; HINI = PARAMS_df.hini[0]; P = PARAMS_df.P[0]
 ET = PARAMS_df.ET[0]; TIMESTEP = PARAMS_df.timeStep[0]; KADJUST = PARAMS_df.Kadjust[0]
 
-print(">>>>> WARNING, OVERWRITING PEAT DEPTH")
-peat_depth_arr[peat_depth_arr < 2.] = 2.
-
 # catchment mask
 catchment_mask = np.ones(shape=dem.shape, dtype=bool)
 catchment_mask[np.where(dem<-10)] = False # -99999.0 is current value of dem for nodata points.
+
+print(">>>>> WARNING, OVERWRITING PEAT DEPTH")
+# peat_depth_arr[peat_depth_arr < 2.] = 2.
+peat_depth_arr = dem[:]
 
 # peel the dem. Only when dem is not surrounded by water
 boundary_mask = utilities.peel_raster(dem, catchment_mask)
@@ -92,8 +112,8 @@ peat_bottom_elevation = - peat_depth_arr * catchment_mask # meters with respect 
 
 h_to_tra_and_C_dict, K = hydro_utils.peat_map_interp_functions(Kadjust=KADJUST) # Load peatmap soil types' physical properties dictionary
 
-weather_stations_coordinates = [(100, 100), (200,200), (234, 142)] # TODO: change with coords from data
-weather_station_mask, ws_mask_dict = preprocess_data.nearest_neighbors_mask_from_coordinates(dem.shape, weather_stations_coordinates)
+# weather_stations_coordinates = [(100, 100), (200,200), (234, 142)] # TODO: change with coords from data
+# weather_station_mask, ws_mask_dict = preprocess_data.nearest_neighbors_mask_from_coordinates(dem.shape, weather_stations_coordinates)
 # Then, weather_station_mask is to be used to mask the source term in the equation.
 
 # Plot K
@@ -143,20 +163,19 @@ for i in range(0,N_ITER):
         damLocation = damLocation + list(built_block_positions)
     
     wt_canals = utilities.place_dams(oWTcanlist, srfcanlist, BLOCK_HEIGHT, damLocation, CNM)
+
+#%% 
     """
     #########################################
                     HYDROLOGY
     #########################################
     """
     ny, nx = dem.shape
-    dx = 100.; dy = 1. # metres per pixel  (Actually, pixel size is 100m x 100m, so all units have to be converted afterwards)
+    dx = 100.; dy = 100. # metres per pixel  (Actually, pixel size is 100m x 100m, so all units have to be converted afterwards)
+    dt = 1 # in days
     
     boundary_arr = boundary_mask * (dem - DIRI_BC) # constant Dirichlet value in the boundaries
     
-    # P = read.read_precipitation()
-    P = [0.0] * DAYS 
-    # ET = ET * np.ones(shape=P.shape)
-    ET = [0.0] * DAYS
     
     ele = dem * catchment_mask
     
@@ -178,16 +197,44 @@ for i in range(0,N_ITER):
             continue # because c_to_r_list begins at 1
         wt_canal_arr[coords] = wt_canals[canaln]
     
-    
-    wtd = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
-                                                      peat_type_mask=peat_type_masked, httd=h_to_tra_and_C_dict, tra_to_cut=tra_to_cut, sto_to_cut=sto_to_cut,
-                                                      diri_bc=None, neumann_bc = 0., plotOpt=True, remove_ponding_water=True,
-                                                      P=P, ET=ET, dt=TIMESTEP)
-    
-    
+    HYDRO_THETA = True
+    if HYDRO_THETA:
+        from hydro_theta import hydro_theta
+        from hydro_theta import hydro_theta_scaled
         
+        s1 = -1.211; s2 = 1.785; t1 = 5.9; t2 = 2.8
+        params = [s1, s2, t1, t2]
+        wt_canal_arr = (wt_canal_arr - ele) * (wt_canal_arr > 0) # head to zeta
         
+        wtd_modelled_n = [0] * (DAYS + 1)
+        wtd_modelled_n[0] = np.ones(shape=dem.shape) * HINI * catchment_mask
         
+        wtd_modelled_scaled = [0] * (DAYS + 1)
+        wtd_modelled_scaled[0] = np.ones(shape=dem.shape) * HINI * catchment_mask
+        
+        for day in range(1, DAYS+1):
+
+            sourcearray = precip[day-1] - evapotra[day-1]
+            
+            zeta_ini = wtd_modelled_n[day-1]
+            
+            # wtd_modelled_n[day] = hydro_theta(nx, ny, dx, dy, dt, ele, zeta_ini,
+            #                                   catchment_mask, wt_canal_arr, sourcearray,
+            #                                   -peat_bottom_elevation, params, plotOpt=True)
+            
+            wtd_modelled_scaled[day] = hydro_theta_scaled(nx, ny, dx, dy, dt, ele, zeta_ini,
+                                  catchment_mask, wt_canal_arr, sourcearray,
+                                  -peat_bottom_elevation, params, plotOpt=True)
+            
+            
+            print(f'>>>>> Computed day: {day}')
+        
+    else:    
+        wtd = hydro_standard.hydrology('transient', nx, ny, dx, dy, DAYS, ele, phi_ini, catchment_mask, wt_canal_arr, boundary_arr,
+                                       peat_type_mask=peat_type_masked, httd=h_to_tra_and_C_dict, tra_to_cut=tra_to_cut, sto_to_cut=sto_to_cut,
+                                       diri_bc=None, neumann_bc = 0., plotOpt=True, remove_ponding_water=True,
+                                       P=precip, ET=evapotra, dt=TIMESTEP)
+    
     
     # water_blocked_canals = sum(np.subtract(wt_canals[1:], oWTcanlist[1:]))
     
@@ -229,23 +276,80 @@ multiband = np.array([wtd, co2, subsi])
 
 utilities.write_raster_multiband(3, multiband, STUDY_AREA, out_filename='output/dem_co2_subsi.tif', ref_filename=dem_rst_fn)    
     
-"""
-Save WTD data if simulating a year
-"""
-# fname = r'output/wtd_year_' + str(N_BLOCKS) + '.txt'
-# if DAYS > 300:
-#    with open(fname, 'a') as output_file:
-#        output_file.write("\n %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n" +
-#                              str(time.ctime()) + " nblocks = " + str(N_BLOCKS) + " ET = " + str(ET[0]) +
-#                              '\n' + 'drained notdrained mean'
-#                              )
-#        for i in range(len(wt_track_drained)): 
-#            output_file.write( "\n" + str(wt_track_drained[i]) + " " + str(wt_track_notdrained[i]) + " " + str(avg_wt_over_time[i]))
+#%%
+# Write modelled wtd data to output raster files    
+def write_raster_to_disk(raster, out_filename, template_raster_fn=dem_rst_fn):
+    import rasterio
+    with rasterio.open(template_raster_fn) as src: #src file is needed to output with the same metadata and attributes
+        profile = src.profile
+    
+    dem = preprocess_data.read_raster(dem_rst_fn)
+    dem = preprocess_data.preprocess_dem(dem)   # Convert from numpy no data to -9999.0
+    dem = preprocess_data.resize_study_area(STUDY_AREA, dem)
+  
+    profile.update(nodata = None) # overrun nodata value given by input raster
+    profile.update(width = wtd_old.shape[1]) # Shape of rater is changed for hydro simulation inside read_preprocess_rasters. Here we take that shape to output consistently.
+    profile.update(height = wtd_old.shape[0])
+    # profile.update(dtype='float32', compress='lzw') # What compression to use?
+    profile.update(dtype='float32') # instead of 64. To save space, we don't need so much precision. float16 is not supported by GDAL, check: https://github.com/mapbox/rasterio/blob/master/rasterio/dtypes.py
 
-# plt.figure()
-# plt.plot(list(range(0,DAYS)), wt_track_drained, label='close to drained')
-# plt.plot(list(range(0,DAYS)), wt_track_notdrained, label='away from drained')
-# plt.plot(list(range(0,DAYS)), avg_wt_over_time, label='average')
-# plt.xlabel('time(days)'); plt.ylabel('WTD (m)')
-# plt.legend()
-# plt.show()
+    with rasterio.open(out_filename, 'w', **profile) as dst:
+        dst.write(raster.astype(dtype='float32'), 1)
+        
+    return 0
+
+for day in range(1, DAYS-1):
+    out_filename = 'output/WTD/' + str(day).zfill(3) + '.tif' 
+    write_raster_to_disk(wtd_modelled_scaled[day], out_filename, template_raster_fn=dem_rst_fn)
+
+
+#%%
+"""
+Compare modelled to sensor data. Validation.
+"""
+#%%
+# Read rasters from file
+folder = 'output/WTD/'
+file_names = [str(day).zfill(3) + '.tif' for day in range(1, DAYS-1)]
+wtd_modelled = []
+for fname in sorted(file_names):
+    wtd_modelled.append(preprocess_data.read_raster(Path(folder + fname)))
+
+#%%
+# create dataframe of  modelled and measured water tables
+    
+# TODO: get all sensor locations from raster
+sen_loc_dict = {'P002': 140, 'P012': 165, 'P015': 171, 'P016': 174, 'P018': 180}
+sen_pixel = {k:tuple(np.argwhere(sensor_loc_arr==v)[0]) for k,v in sen_loc_dict.items()}
+
+modeled_wtd_per_sensor = pd.DataFrame(index=range(1,DAYS+2), columns= (['jday'] + list(sen_loc_dict.keys())))
+modeled_wtd_per_sensor['jday'] = np.arange(730, 1078)
+
+wtd_mod = np.array(wtd_modelled_scaled)
+for sen_name, sen_coords in sen_pixel.items():
+    modeled_wtd_per_sensor[sen_name] = wtd_mod[:, sen_coords[0], sen_coords[1]]
+
+for sen_name in sen_loc_dict.keys():
+    plt.figure('validation_' + sen_name)
+    plt.plot(modeled_wtd_per_sensor['jday'], modeled_wtd_per_sensor[sen_name], label='modeled')
+    plt.plot(df_weather_and_wtd_measurements[sen_name]['sensor_1'], 'o', label= 'measured')
+    plt.title(sen_name + 'mod vs meas')
+    plt.xlabel('jdays')
+    plt.ylabel('WTD(m)')
+    plt.legend()
+
+
+#%%
+# compare modelled and measured
+missing_sen = [sn for sn in sensor_name_dict.values() if sn not in wtd_all] # some sensor data is missing
+present_sen = set(sensor_name_dict.values()) - set(missing_sen)
+transects = {tn[:-2] for tn in present_sen}
+for transect_name in transects:
+    plt.figure('validation: ' + transect_name)
+    snames = [sn for sn in present_sen if transect_name in sn]
+    for sn in snames:
+        mod = modeled_wtd_per_sensor[sn].to_numpy()
+        meas = wtd_all[sn].to_numpy() * 0.01
+        plt.plot(mod, label='modelled')
+        plt.plot(meas, 'o', label='measured')
+plt.legend()

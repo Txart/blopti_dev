@@ -230,7 +230,7 @@ def map_lc_number_to_lc_coef_in_co2_emission_formula(lc_raster):
                 (lc_raster==20092) | (lc_raster==20093) | (lc_raster==2012) |
                 (lc_raster==20121) | (lc_raster==2014) | (lc_raster==20141) |
                 (lc_raster==50011)] = -84 # Deforested peatlands
-    lc_multiplicative_coef_co2[lc_raster==2010] = -77.07 # Other Plantations
+    lc_multiplicative_coef_co2[lc_raster==2010] = -91.75 # Other Plantations
     
     lc_additive_coef_co2[(lc_raster==2002) | (lc_raster==20041) | (lc_raster==20051)] = 0 # Degraded forests
     lc_additive_coef_co2[lc_raster==2005] = 0 # Primary forests
@@ -239,7 +239,7 @@ def map_lc_number_to_lc_coef_in_co2_emission_formula(lc_raster):
                 (lc_raster==20092) | (lc_raster==20093) | (lc_raster==2012) |
                 (lc_raster==20121) | (lc_raster==2014) | (lc_raster==20141) |
                 (lc_raster==50011)] = 9 # Deforested peatlands
-    lc_additive_coef_co2[lc_raster==2010] = 19.8 # Other Plantations
+    lc_additive_coef_co2[lc_raster==2010] = -1.72 # Other Plantations
 
     return lc_multiplicative_coef_co2, lc_additive_coef_co2
 

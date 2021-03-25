@@ -49,7 +49,7 @@ def ReadInput(filename):
 
     return n_nodes, peat_height, height, block_height, n_blocks, n_canals, nodes_per_canal, originalWTcanal, srfccanal
 
-def read_precipitation():
+def read_precipitation(filename):
     """
     Reads Pekanbaru airport 2012 weather data.
     Returns numpy array with 2012 (1 year) daily values 
