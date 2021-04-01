@@ -61,9 +61,9 @@ DIST_BETWEEN_NODES = 100. # m
 
 def infer_BC_nodes(adj_matrix):
     """
-    Infer what nodes are Neumann and Dirichlet from adjacency matrix.
-    Last nodes of canals (identified by having no outgoing edges) are set to Diri BC
-    First nodes of canals (No ingoing edges) are set to Neumann
+    Infer what nodes are the beginning and end of canals from adjacency matrix.
+    Last nodes of canals  are identified by having no outgoing edges
+    First nodes of canals have no incoming edges
 
     Parameters
     ----------
@@ -72,29 +72,32 @@ def infer_BC_nodes(adj_matrix):
 
     Returns
     -------
-    diri_bc_bool : boolean numpy array
-        True where nodes have Dirichlet BC
-    neumann_bc_bool : boolean numpy array
-        True where nodes have Neumann BC
+    end_nodes_bool : boolean numpy array
+        True where nodes are last nodes of canals
+    first_nodes_bool : boolean numpy array
+        True where nodes are first nodes of canals
 
     """
     # Infer neumann and Diri nodes from adj matrix
-    diri_bc_bool = np.sum(CNM, axis=0) == 0 # Boundary values below are conditional on this boolean mask
-    neumann_bc_bool = np.sum(CNM, axis=1) == 0 
+    end_nodes_bool = np.sum(CNM, axis=0) == 0 # Boundary values below are conditional on this boolean mask
+    first_nodes_bool = np.sum(CNM, axis=1) == 0 
     # in case the summing over the sparse matrix changes the numpy array shape
-    diri_bc_bool = np.ravel(diri_bc_bool) 
-    neumann_bc_bool = np.ravel(neumann_bc_bool)
+    end_nodes_bool = np.ravel(end_nodes_bool) 
+    first_nodes_bool = np.ravel(first_nodes_bool)
    
-    return diri_bc_bool, neumann_bc_bool
+    return end_nodes_bool, first_nodes_bool
 
 # BC    
 # For now, same BC across the domain, but could be spatio-temporaly varying
-diri_bc_bool, neumann_bc_bool = infer_BC_nodes(CNM)
+end_nodes_bool, first_nodes_bool = infer_BC_nodes(CNM)
+
+# End nodes are diri, beginning nodes of a  canal are neumann
+diri_bc_bool, neumann_bc_bool = end_nodes_bool, first_nodes_bool
 
 DIRI_BC = 1.
 NEUMANN_BC = 0.
-diri_bc_nodes = DIRI_BC * diri_bc_bool
-neumann_bc_nodes = NEUMANN_BC * neumann_bc_bool
+diri_bc_values = DIRI_BC * diri_bc_bool
+neumann_bc_values = NEUMANN_BC * neumann_bc_bool
 
 # P - ET
 SOURCE = 0.0 # P - ET m/ dt units
@@ -109,13 +112,13 @@ h_ini = dem_nodes + cwl_ini
 # create graph
 g = nx.DiGraph(incoming_graph_data=CNM.T) # transposed for dynamics!
 
-def initialize_graph_values(g, h_ini, dem_nodes, diri_bc_nodes, diri_bc_bool, neumann_bc_nodes, neumann_bc_bool, source):
+def initialize_graph_values(g, h_ini, dem_nodes, diri_bc_values, diri_bc_bool, neumann_bc_values, neumann_bc_bool, source):
     nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(h_ini)}, name='h_old')
     nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(h_ini)}, name='h_new')
     nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(dem_nodes)}, name='ele')   
-    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_nodes)}, name='diri_bc')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_values)}, name='diri_bc')
     nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(diri_bc_bool)}, name='diri_bool')
-    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_nodes)}, name='neumann_bc')
+    nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_values)}, name='neumann_bc')
     nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(neumann_bc_bool)}, name='neumann_bool')
     nx.set_node_attributes(G=g, values={i: value for i, value in enumerate(source)}, name='source')
     
@@ -170,7 +173,7 @@ def advection_netx_single_step(g, dt, dx, b):
 
     return 0
 
-initialize_graph_values(g_un, h_ini, dem_nodes, diri_bc_nodes, diri_bc_bool, neumann_bc_nodes, neumann_bc_bool, source)
+initialize_graph_values(g_un, h_ini, dem_nodes, diri_bc_values, diri_bc_bool, neumann_bc_values, neumann_bc_bool, source)
 
 h_adv_nx = [[] for i in range(niter)]
 for t in range(niter):
@@ -204,88 +207,87 @@ def L_advection(directed_adj_matrix):
     D_out = np.diag(np.sum(directed_adj_matrix, axis=0))
     return D_out - directed_adj_matrix
 
-def advection_diffusion_operator(dx, L, L_adv, a, b):
-    return -a/dx**2*L + b/dx*L_adv
-
-def set_Neumann_BC(L_mix, L, neumann_bc_bool):
+def advection_diffusion_operator(dx, L, L_adv, a, b, diri_bc_bool, neumann_bc_bool):
     
-    warnings.warn('Neumann BC not checked yet!')
+    if np.any(neumann_bc_values != 0):
+        raise NotImplementedError("Only No flux Neumann implemented so far")
     
-    no_flux_nodes = np.where(neumann_bc_bool)[0]
-    for nrow in no_flux_nodes: # No flux BC
-        L_mix[nrow] = L[nrow]
+    # Set default BCs: Neumann
+    L_BC = L[:] # No changes
+    
+    L_advBC = L_adv[:] # Neumann BCs affect L_adv only if in first nodes of canals
+    # L_advBC[neumann_bc_bool, neumann_bc_bool] = L_advBC[neumann_bc_bool, neumann_bc_bool] - 1
+    
+    # Construct operator
+    L_mix = a/dx**2*(-L_BC) + b/dx*(-L_advBC)
+    
+    # Set Diri BCs
+    L_mix[diri_bc_bool] = np.zeros(shape=L_mix[0].shape)
     
     return L_mix
+    
+def set_source_BC(source, dx, a, b, diri_bc_bool, neumann_bc_values):
+    
+    if np.any(neumann_bc_values != 0):
+        raise NotImplementedError("Only No flux Neumann implemented so far")
+    
+    source_BC = source[:]
+    # Set Neumann BC. No-flux as default
+    # source_BC[neumann_bc_bool] = source_BC[neumann_bc_bool] + neumann_bc_values[neumann_bc_bool]*(a/dx + b)
+    
+    # Set Diri BC
+    source_BC[diri_bc_bool] = 0.
+    
+    return source_BC
 
-def set_Diri_BC(h, h_old, diri_bc_bool):
-    h = np.where(diri_bc_bool, h_old, h) # Diri BC conditions    
-    return h
 
-def forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool, neumann_bc_bool):
-    
-    L_mix = advection_diffusion_operator(dx, L, L_adv, a, b)
-    
-    L_mix = set_Neumann_BC(L_mix, L, neumann_bc_bool)
-    
-    h = h - dt * L_mix @ h + dt*source
-    
-    h = set_Diri_BC(h, h_old, diri_bc_bool)
-    
-    return h
+def forward_Euler_adv_diff_single_step(h, dt, L_mix, source): 
+    return h + dt * L_mix @ h + dt*source
 
-def backwards_Euler(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool, neumann_bc_bool):
+
+def backwards_Euler(h, dt, L_mix, source):
     
-    L_mix = advection_diffusion_operator(dx, L, L_adv, a, b)
-    
-    L_mix = set_Neumann_BC(L_mix, L, neumann_bc_bool)
-    
-    P = np.eye(N=L.shape[0]) - dt*L_mix
+    P = np.eye(N=L_mix.shape[0]) - dt*L_mix
     P_inv = np.linalg.inv(P)
     
     h = P_inv @ (h + dt*source)
     
-    h = set_Diri_BC(h, h_old, diri_bc_bool)
-    
     return h
 
-def advection_diffusion_vectorial(dt, dx, a, b, niter, h_ini, A, source):
-    """
-    Advection and diffusion terms.
+#%%
+"""
+Make some sample computations.
     eq: dm/dt = am'' + bm' + source
+    a: diffusion coef; b: advection coef
+""" 
+L = compute_laplacian_from_adjacency(cnm_sim)
+L_adv = L_advection(cnm)
 
-    """
-    h = h_ini[:] # Ini cond
-    h_old = h_ini[:]
+time_duration = 1000
+dt = 1
+niter = int(time_duration/dt)
+dx = 100
 
-    L = compute_laplacian_from_adjacency(cnm_sim)
-    L_adv = L_advection(cnm)
-    
-    for t in range(niter):
-       h = forward_Euler_adv_diff_single_step(h, h_old, dt, dx, a, b, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
-    return(h)
+h = h_ini[:]
 
-# Plot solutions over time
-if plotOpt:
-    niter = 10000
-    dt = 100/niter
-    dx = 1
-    
-    h_adv = h_ini[:]
-    h_dif = h_ini[:]
-    h_advdif = h_ini[:]
-    L = compute_laplacian_from_adjacency(cnm_sim)
-    L_adv = L_advection(cnm)
-    
+a, b = 0, 1
+
+diri_bc_bool = np.array([False, False, False, False, False])
+neumann_bc_bool = np.array([True, False, False, False, True])
+neumann_bc_values = 0*neumann_bc_bool
+
+L_mix = advection_diffusion_operator(dx, L, L_adv, a, b, diri_bc_bool, neumann_bc_bool)
+source_BC = set_source_BC(source, dx, a, b, diri_bc_bool, neumann_bc_values)
+
+# Compute and plot solutions over time
+if plotOpt:    
     plt.figure()
     for t in range(niter):
-        if t % (int(niter/10))==0:
-            plt.plot(h_adv, color='blue', alpha=0.5, label='advection')
-            # plt.plot(h_dif, color='orange', alpha=0.5, label='diffusion')
-            # plt.plot(h_advdif, color='green', alpha=0.5, label='adv + diff')
-        h_adv = forward_Euler_adv_diff_single_step(h_adv, h_ini, dt, dx, 0, 1, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
-        h_dif = forward_Euler_adv_diff_single_step(h_dif, h_ini, dt, dx, 1, 0, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
-        h_advdif = forward_Euler_adv_diff_single_step(h_advdif, h_ini, dt, dx, 1, 1, L, L_adv, source, diri_bc_bool, neumann_bc_bool)
-        
+        if t % (int(niter/100))==0:
+            plt.plot(h, color='blue', alpha=0.5)
+
+        h = forward_Euler_adv_diff_single_step(h, dt, L_mix, source)
+
     plt.legend()
     plt.show()
         
@@ -300,15 +302,18 @@ def advection_fd(dt, dx, niter, h_ini):
     h_old = h_ini[:]
     N = len(h)
     
+    plt.figure()
+    plt.title('advection finite diff')
     for t in range(niter):
         for i in range(N):
+            plt.plot(h, color='orange', alpha=0.5)
             if i==0: # Neumann BC   
                 h[0] = h_old[0] + dt/dx *0.5* (-h_old[0] + h_old[1]) + dt*source[0]
             elif i==N-1: # Diri BC
                 h[-1] = h_old[-1]
             else:
                 # backward difference
-                h[i] = h_old[i] + dt/dx * (h_old[i] - h_old[i-1])
+                h[i] = h_old[i] + dt/dx * (h_old[i] - h_old[i-1]) + dt*source[i]
                 
         h_old = h
         
@@ -319,8 +324,11 @@ def diffusion_fd(dt, dx, niter, h_ini):
     h_old = h_ini[:]
     N = len(h)
     
+    plt.figure()
+    plt.title('diffusion finite diff')
     for t in range(niter):
         for i in range(N):
+            plt.plot(h, color='orange', alpha=0.5)
             if i==0: # No flux Neumann BC   
                 h[0] = h_old[0] + dt/dx * 0.5* (-h_old[0] + h_old[1]) + dt*source[0]
             elif i==N-1: # Diri BC
@@ -331,29 +339,13 @@ def diffusion_fd(dt, dx, niter, h_ini):
         h_old = h
         
     return h
-                
-            
-#%%
-# Comparison graph and finite differences approach (only valid for 1d, linear mesh)
-h_ini = dem_nodes + cwl_ini
 
-sol_fdadv = advection_fd(dt, dx, niter, dem_nodes + cwl_ini)
-sol_fddif = diffusion_fd(dt, dx, niter, dem_nodes + cwl_ini)        
 
-sol_adv = advection_diffusion_vectorial(dt, dx, 0, 1, niter, dem_nodes + cwl_ini, cnm_sim, source)
-sol_dif = advection_diffusion_vectorial(dt, dx, 1, 0, niter, dem_nodes + cwl_ini, cnm_sim, source)
-                     
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
+
+
+
+
+
+
+
