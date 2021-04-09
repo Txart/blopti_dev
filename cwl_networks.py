@@ -149,11 +149,11 @@ niter = 100
               
 #%%
 # Dynamics with NetworkX
-def advection_netx_single_step(g, dt, dx, b):
+def diffusion_netx_single_step(g, dt, dx, b):
     """
-    Performs advection on graph and updates properties in place
-    Diffusion not yet implemented!
-    - b is advection constant, i.e., du/dt = bdu/dx
+    Performs diffusion on graph and updates properties in place
+    Advection not yet implemented!
+    - b is advection constant, i.e., du/dt = bu''
     - g is undirected
     """  
     for n, node in g.nodes(data=True):
@@ -178,16 +178,16 @@ initialize_graph_values(g_un, h_ini, dem_nodes, diri_bc_values, diri_bc_bool, ne
 h_adv_nx = [[] for i in range(niter)]
 for t in range(niter):
     
-    h_adv_nx[t] = [node['h_new'] for _,node in g_un.nodes(data=True)]
+    h_dif_nx[t] = [node['h_new'] for _,node in g_un.nodes(data=True)]
     
-    advection_netx_single_step(g_un, dt, dx, 1)
+    diffusion_netx_single_step(g_un, dt, dx, 1)
     
     for n, node in g_un.nodes(data=True):
         node['h_old'] = node['h_new']
 
 plt.figure()
 for t in range(niter):
-    plt.plot(h_adv_nx[t], color='blue', alpha=0.3)
+    plt.plot(h_dif_nx[t], color='blue', alpha=0.3)
 
 
 #%%
